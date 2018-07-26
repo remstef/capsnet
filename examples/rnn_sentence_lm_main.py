@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.onnx
 
-import rnn_sentence_lm_data as data
+from rnn_sentence_lm_data import WikiSentences, Index
 import rnn_sentence_lm_net as model
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
@@ -58,8 +58,11 @@ device = torch.device("cuda" if args.cuda else "cpu")
 ###############################################################################
 # Load data
 ###############################################################################
+index = Index()
+train_ = WikiSentences(args.data, subset='train', index = index)
+test_ = WikiSentences(args.data, subset='test', index = index)
+valid_ = WikiSentences(args.data, subset='valid', index = index)
 
-corpus = data.Corpus(args.data)
 
 # Starting from sequential data, batchify arranges the dataset into columns.
 # For instance, with the alphabet as the sequence and batch size 4, we'd get
@@ -83,15 +86,16 @@ def batchify(data, bsz):
     return data.to(device)
 
 eval_batch_size = 10
-train_data = batchify(corpus.train, args.batch_size)
-val_data = batchify(corpus.valid, eval_batch_size)
-test_data = batchify(corpus.test, eval_batch_size)
+train_data = batchify(train_.data, args.batch_size)
+val_data = batchify(valid_.data, eval_batch_size)
+test_data = batchify(test_.data, eval_batch_size)
+
 
 ###############################################################################
 # Build the model
 ###############################################################################
 
-ntokens = len(corpus.dictionary)
+ntokens = len(index)
 model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 
 criterion = nn.CrossEntropyLoss()
@@ -129,7 +133,7 @@ def evaluate(data_source):
     # Turn on evaluation mode which disables dropout.
     model.eval()
     total_loss = 0.
-    ntokens = len(corpus.dictionary)
+    ntokens = len(index)
     hidden = model.init_hidden(eval_batch_size)
     with torch.no_grad():
         for i in range(0, data_source.size(0) - 1, args.bptt):
@@ -146,7 +150,7 @@ def train():
     model.train()
     total_loss = 0.
     start_time = time.time()
-    ntokens = len(corpus.dictionary)
+    ntokens = len(index)
     hidden = model.init_hidden(args.batch_size)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
