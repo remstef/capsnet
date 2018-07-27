@@ -125,7 +125,6 @@ def reshape_batch(batch_data):
     return x_batch, y_batch
 
 
-#def evaluate(data_source):
 def evaluate(d_loader):
     # Turn on evaluation mode which disables dropout.
     model.eval()
@@ -133,14 +132,13 @@ def evaluate(d_loader):
     ntokens = len(index)
     hidden = model.init_hidden(eval_batch_size)
     with torch.no_grad():
-
         for batch, batch_data in enumerate(d_loader):
             data, targets = reshape_batch(batch_data)
             output, hidden = model(data, hidden)
             output_flat = output.view(-1, ntokens)
             total_loss += len(data) * criterion(output_flat, targets).item()
             hidden = repackage_hidden(hidden)
-    return total_loss / len(d_loader)
+    return total_loss / (len(d_loader) * args.bptt )
 
 
 def train():
