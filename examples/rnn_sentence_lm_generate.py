@@ -10,7 +10,6 @@
 import argparse
 import os
 import torch
-from torch.autograd import Variable
 
 from rnn_sentence_lm_data import Index
 
