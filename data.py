@@ -126,6 +126,12 @@ class WikiSentences(torch.utils.data.Dataset):
     x = self.data[index : index+self.seqlen]
     y = self.data[index + 1 : index+self.seqlen+1]
     return x, y 
+  
+  def cuda(self):
+    self.data.cuda()
+  
+  def to(self, device):
+    self.data.to(device)
 
 class SpamDataset(torch.utils.data.Dataset):
 
