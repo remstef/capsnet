@@ -128,10 +128,12 @@ class WikiSentences(torch.utils.data.Dataset):
     return x, y 
   
   def cuda(self):
-    self.data.cuda()
+    self.data = self.data.cuda()
+    return self
   
   def to(self, device):
-    self.data.to(device)
+    self.data = self.data.to(device)
+    return self
 
 class SpamDataset(torch.utils.data.Dataset):
 
