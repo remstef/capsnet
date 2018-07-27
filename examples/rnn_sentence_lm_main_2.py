@@ -71,9 +71,9 @@ valid_ = WikiSentences(args.data, subset='valid', index = index, seqlen = args.b
 index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
 
 eval_batch_size = 10
-train_loader = torch.utils.data.DataLoader(train_, batch_size = args.batch_size, drop_last = True, num_workers = 2, pin_memory=True)
-test_loader = torch.utils.data.DataLoader(test_, batch_size = eval_batch_size, drop_last = True, num_workers = 2, pin_memory=True)
-valid_loader = torch.utils.data.DataLoader(valid_, batch_size = eval_batch_size, drop_last = True, num_workers = 2, pin_memory=True)
+train_loader = torch.utils.data.DataLoader(train_, batch_size = args.batch_size, drop_last = True, num_workers = 0)
+test_loader = torch.utils.data.DataLoader(test_, batch_size = eval_batch_size, drop_last = True, num_workers = 0)
+valid_loader = torch.utils.data.DataLoader(valid_, batch_size = eval_batch_size, drop_last = True, num_workers = 0)
 
 # Starting from sequential data, batchify arranges the dataset into columns.
 # For instance, with the alphabet as the sequence and batch size 4, we'd get
