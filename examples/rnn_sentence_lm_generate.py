@@ -8,11 +8,11 @@
 ###############################################################################
 
 import argparse
-
+import os
 import torch
 from torch.autograd import Variable
 
-import rnn_sentence_lm_data as data
+from rnn_sentence_lm_data import Index
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 Language Model')
 
@@ -50,8 +50,8 @@ with open(args.checkpoint, 'rb') as f:
     model = torch.load(f).to(device)
 model.eval()
 
-corpus = data.Corpus(args.data)
-ntokens = len(corpus.dictionary)
+index = Index.fromfile(os.path.join(args.data, 'vocab.txt')).freeze()
+ntokens = len(index)
 hidden = model.init_hidden(1)
 input = torch.randint(ntokens, (1, 1), dtype=torch.long).to(device)
 
@@ -62,7 +62,7 @@ with open(args.outf, 'w') as outf:
             word_weights = output.squeeze().div(args.temperature).exp().cpu()
             word_idx = torch.multinomial(word_weights, 1)[0]
             input.fill_(word_idx)
-            word = corpus.dictionary.idx2word[word_idx]
+            word = index.getWord[word_idx]
 
             outf.write(word + ('\n' if i % 20 == 19 else ' '))
 

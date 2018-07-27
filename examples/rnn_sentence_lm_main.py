@@ -2,7 +2,7 @@
 import argparse
 import time
 import math
-import os
+import os, sys
 import torch
 import torch.nn as nn
 import torch.onnx
@@ -62,6 +62,8 @@ index = Index()
 train_ = WikiSentences(args.data, subset='train', index = index)
 test_ = WikiSentences(args.data, subset='test', index = index)
 valid_ = WikiSentences(args.data, subset='valid', index = index)
+index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
+
 
 
 # Starting from sequential data, batchify arranges the dataset into columns.
@@ -154,6 +156,14 @@ def train():
     hidden = model.init_hidden(args.batch_size)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
+#        print('--- data')
+#        print(data.size())
+#        print(data[0].size())
+#        print(list(index[data.tolist()]))
+#        print('--- targets')
+#        print(targets.size())
+#        print(list(index[targets.tolist()]))
+        sys.exit()
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
         hidden = repackage_hidden(hidden)

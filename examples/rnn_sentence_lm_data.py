@@ -10,10 +10,13 @@ class Index(object):
   def __init__(self):
     self.id2w = []
     self.w2id = {}
+    self.frozen = False
 
   def add(self, word):
     if word in self.w2id:
       return self.w2id[word]
+    if self.frozen:
+      raise ValueError('Index can not be altered anymore. It is already frozen.')
     idx = len(self.id2w)
     self.w2id[word] = idx
     self.id2w.append(word)
@@ -28,8 +31,36 @@ class Index(object):
   def getId(self, word):
     return self.w2id[word]
   
+  def tofile(self, fname):
+    with open(fname, 'w') as f:
+      lines = map(lambda w: w + '\n', self.id2w)
+      f.writelines(lines)
+      
+  def freeze(self):
+    self.frozen = True
+    return self
+  
+  @staticmethod
+  def fromfile(fname):
+    index = Index()
+    with open(fname, 'r', encoding='utf8') as f:
+      for i, line in enumerate(f):
+        w = line.rstrip()
+        index.id2w.append(w)
+        index.w2id[w] = i
+    return index
+  
+  def __getitem__(self, key):
+    if isinstance(key, str):
+      return self.getId(key)
+    if hasattr(key, '__iter__'):
+      return list(map(lambda k: self[k], key))
+    else:
+      return self.getWord(key)
+  
   def __len__(self):
     return self.size()
+  
 
 '''
 
