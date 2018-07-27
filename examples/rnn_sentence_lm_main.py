@@ -160,19 +160,29 @@ def train():
     hidden = model.init_hidden(args.batch_size)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
-#        print('--- data')
-#        print(data.size())
-#        print(data[0].size())
-#        print(list(index[data.tolist()]))
-#        print('--- targets')
-#        print(targets.size())
-#        print(list(index[targets.tolist()]))
-#        sys.exit()
-        # Starting each batch, we detach the hidden state from how it was previously produced.
-        # If we didn't, the model would try backpropagating all the way to start of the dataset.
         hidden = repackage_hidden(hidden)
         model.zero_grad()
         output, hidden = model(data, hidden)
+
+##########
+##########
+#        print('--- data')
+#        print(data.size())
+#        print(list(map(list, index[data.tolist()])))
+#        print('--- output')
+#        print(output.size())
+#        output_squeezed = output.view(-1, ntokens)
+#        print('--- output view')
+#        print(output_squeezed.size())
+#        print(output_squeezed)
+#        print('--- targets')
+#        print(targets.size())
+#        print(targets)
+#        print(list(index[targets.tolist()]))
+#        sys.exit()
+##########
+##########
+        
         loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
 

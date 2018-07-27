@@ -1,4 +1,4 @@
-https://github.com/pytorch/examples/blob/master/word_language_model/README.md
+adapted from https://github.com/pytorch/examples/blob/master/word_language_model/README.md
 
 # Word-level language modeling RNN
 
