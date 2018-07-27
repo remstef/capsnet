@@ -10,15 +10,85 @@ import numpy as np
 import sys
 import faiss
 from pyfasttext import FastText
+from index import Index
 
 class Embedding(object):
+  
+  def __init__(self, weights, index):
+    assert weights.shape[0] == len(index)
+    self.vdim = weights.shape[1]
+    self.index = index
+    self.weights = weights
+    self.invindex = None
+
+  def getVector(self, word):
+    if not self.containsWord(word):
+      print("'%s' is unknown." % word, file = sys.stderr)
+      return np.zeros(self.vdim)
+    idx = self.index.getId(word)
+    return self.weights[idx]
+    
+  def search(self, q, topk = 4):
+    if not self.invindex:
+      print('Building faiss index...')
+      self.invindex = faiss.IndexFlatL2(self.vdim)
+      self.invindex.add(self.weights)
+      print('Faiss index built:', self.invindex.is_trained)
+    if len(q.shape) == 1:
+      q = np.matrix(q)
+    if q.shape[1] != self.vdim:
+      print('Wrong shape, expected %d dimensions but got %d.' % (self.vdim, q.shape[1]), file = sys.stderr)
+      return
+    D, I = self.invindex.search(q, topk) # D = distances, I = indices
+    return ( I, D )
+    
+  def wordForVec(self, v):
+    idx, dist = self.search(v, topk=1)
+    idx = idx[0,0]
+    dist = dist[0,0]
+    sim = 1. - dist
+    word = self.index.getWord[idx]
+    return word, sim
+
+  def containsId(self, idx):
+    return self.index.hasId(idx)
+  
+  def containsWord(self, word):
+    return self.index.hasWord(word)
+  
+  def vocabulary(self):
+    return self.id2w
+  
+  def dim(self):
+    return self.vdim
+  
+  @staticmethod
+  def filterembedding(vocabulary, embedding, fillmissing = True):
+    index = Index()
+    weights = []
+    if fillmissing:
+      rv = RandomEmbedding(embedding.dim())
+    for w in vocabulary:
+      if index.hasWord(w):
+        continue
+      if embedding.containsWord(w):
+        index.add(w)
+        weights.append(embedding.getVector(w))
+      elif fillmissing:
+        index.add(w)
+        weights.append(rv.getVector(w))
+    weights = np.array(weights, dtype = np.float32)
+    return Embedding(weights, index)
+  
+  
+class RandomEmbedding(Embedding):
   
   def __init__(self, vectordim = 300):
     self.w2id = {}
     self.id2w = []
     self.vdim = vectordim
     self.data = np.zeros((0, self.vdim), dtype = np.float32)
-    self.index = None
+    self.invindex = None
   
   def getVector(self, word):
     if word not in self.w2id:
@@ -26,25 +96,25 @@ class Embedding(object):
       self.w2id[word] = len(self.id2w)
       self.id2w.append(word)
       self.data = np.vstack((self.data, v))
-      if self.index is not None:
-        del self.index
-        self.index = None
+      if self.invindex is not None:
+        del self.invindex
+        self.invindex = None
       return v
     idx = self.w2id[word]
     return self.data[idx]
     
   def search(self, q, topk = 4):
-    if not self.index:
+    if not self.invindex:
       print('Building faiss index...')
-      self.index = faiss.IndexFlatL2(self.vdim)
-      self.index.add(self.data)
-      print('Faiss index built:', self.index.is_trained)
+      self.invindex = faiss.IndexFlatL2(self.vdim)
+      self.invindex.add(self.data)
+      print('Faiss index built:', self.invindex.is_trained)
     if len(q.shape) == 1:
       q = np.matrix(q)
     if q.shape[1] != self.vdim:
       print('Wrong shape, expected %d dimensions but got %d.' % (self.vdim, q.shape[1]), file = sys.stderr)
       return
-    D, I = self.index.search(q, topk) # D = distances, I = indices
+    D, I = self.invindex.search(q, topk) # D = distances, I = indices
     return ( I, D )
     
   def wordForVec(self, v):
@@ -63,7 +133,7 @@ class Embedding(object):
   
   def dim(self):
     return self.vdim
-    
+
     
 class FastTextEmbedding(Embedding):
 
@@ -140,9 +210,9 @@ class TextEmbedding(Embedding):
     self.data = np.array(data_, dtype = np.float32)
     del data_
     print('Building faiss index...')
-    self.index = faiss.IndexFlatL2(self.vdim)
-    self.index.add(self.data)
-    print('Faiss index built:', self.index.is_trained)
+    self.invindex = faiss.IndexFlatL2(self.vdim)
+    self.invindex.add(self.data)
+    print('Faiss index built:', self.invindex.is_trained)
     return self
   
   def getVector(self, word):
@@ -158,7 +228,7 @@ class TextEmbedding(Embedding):
     if q.shape[1] != self.vdim:
       print('Wrong shape, expected %d dimensions but got %d.' % (self.vdim, q.shape[1]), file = sys.stderr )
       return
-    D, I = self.index.search(q, topk) # D = distances, I = indices
+    D, I = self.invindex.search(q, topk) # D = distances, I = indices
     return ( I, D )
     
   def wordForVec(self, v):

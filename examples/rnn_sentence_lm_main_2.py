@@ -13,7 +13,10 @@ import torch
 import torch.nn as nn
 import torch.onnx
 
-from data import WikiSentences, Index
+from data import WikiSentences
+from index import Index
+from embedding import Embedding, FastTextEmbedding
+
 import rnn_sentence_lm_net as model
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
@@ -64,11 +67,17 @@ device = torch.device("cuda" if args.cuda else "cpu")
 ###############################################################################
 # Load data
 ###############################################################################
+
 index = Index()
 train_ = WikiSentences(args.data, subset='train', index = index, seqlen = args.bptt).to(device)
 test_ = WikiSentences(args.data, subset='test', index = index, seqlen = args.bptt).to(device)
 valid_ = WikiSentences(args.data, subset='valid', index = index, seqlen = args.bptt).to(device)
 index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
+
+# load pre embedding
+preemb = FastTextEmbedding('../data/wiki.simple.bin').load()
+preemb = Embedding.filterembedding(index.vocabulary(), preemb, fillmissing = False)
+preemb_weights = preemb.weights
 
 eval_batch_size = 10
 train_loader = torch.utils.data.DataLoader(train_, batch_size = args.batch_size, drop_last = True, num_workers = 0)
@@ -92,7 +101,7 @@ valid_loader = torch.utils.data.DataLoader(valid_, batch_size = eval_batch_size,
 ###############################################################################
 
 ntokens = len(index)
-model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
+model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied, init_weights = preemb_weights).to(device)
 
 criterion = nn.CrossEntropyLoss()
 

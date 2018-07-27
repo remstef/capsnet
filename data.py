@@ -14,9 +14,9 @@ import torch
 import torch.utils
 import torch.utils.data
 import sys
-import os
 from sklearn.preprocessing import MultiLabelBinarizer
 from embedding import Embedding, TextEmbedding, FastTextEmbedding
+from index import Index
 
 
 from sklearn.datasets import fetch_20newsgroups
@@ -27,63 +27,6 @@ emb = Embedding(300) # random vectors
 #emb = TextEmbedding('./glove.840B.300d.txt').load(nlines = 1000, skipheader = False, normalize = True, nlines = 1000)
 #emb = FastTextEmbedding('./wiki.en.bin').load()
 
-class Index(object):
-  
-  def __init__(self):
-    self.id2w = []
-    self.w2id = {}
-    self.frozen = False
-
-  def add(self, word):
-    if word in self.w2id:
-      return self.w2id[word]
-    if self.frozen:
-      raise ValueError('Index can not be altered anymore. It is already frozen.')
-    idx = len(self.id2w)
-    self.w2id[word] = idx
-    self.id2w.append(word)
-    return idx
-  
-  def size(self):
-    return len(self.w2id)
-
-  def getWord(self, index):
-    return self.id2w[index]
-    
-  def getId(self, word):
-    return self.w2id[word]
-  
-  def tofile(self, fname):
-    with open(fname, 'w') as f:
-      lines = map(lambda w: w + '\n', self.id2w)
-      f.writelines(lines)
-      
-  def freeze(self):
-    self.frozen = True
-    return self
-  
-  @staticmethod
-  def fromfile(fname):
-    index = Index()
-    with open(fname, 'r', encoding='utf8') as f:
-      for i, line in enumerate(f):
-        w = line.rstrip()
-        index.id2w.append(w)
-        index.w2id[w] = i
-    return index
-  
-  def __getitem__(self, key):
-    # return the id if we get a word
-    if isinstance(key, str):
-      return self.getId(key)
-    # return the word if we get an id, lets assume that 'key' is some kind of number, i.e. int, long, ...
-    if not hasattr(key, '__iter__'):
-      return self.getWord(key)
-    # otherwise recursively apply this method for every key in an iterable
-    return map(lambda k: self[k], key)
-
-  def __len__(self):
-    return self.size()
   
 '''
  Sentences as a sequence in a single 1d tensor
