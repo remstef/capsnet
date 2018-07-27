@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import sys
+if not '..' in sys.path: sys.path.append('..')
+
 ###############################################################################
 # Language Modeling on Penn Tree Bank
 #
@@ -11,7 +14,7 @@ import argparse
 import os
 import torch
 
-from rnn_sentence_lm_data import Index
+from data import Index
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 Language Model')
 

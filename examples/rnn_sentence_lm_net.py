@@ -4,6 +4,7 @@ import torch.nn as nn
 
 class RNNModel(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
+    '''https://discuss.pytorch.org/t/lstm-to-bi-lstm/12967'''
 
     def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False):
         super(RNNModel, self).__init__()

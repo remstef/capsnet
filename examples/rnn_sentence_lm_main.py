@@ -1,13 +1,17 @@
 # coding: utf-8
+
+import sys
+if not '..' in sys.path: sys.path.append('..')
+
 import argparse
 import time
 import math
-import os, sys
+import os
 import torch
 import torch.nn as nn
 import torch.onnx
 
-from rnn_sentence_lm_data import WikiSentences, Index
+from data import WikiSentences, Index
 import rnn_sentence_lm_net as model
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
