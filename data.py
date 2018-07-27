@@ -107,20 +107,25 @@ class WikiSentences(torch.utils.data.Dataset):
       for i, line in enumerate(f):
         self.tokenize(line)
     self.data = torch.LongTensor(self.data)
-
-  def __init__(self, path, subset = 'train', index = None):
+    
+  def __init__(self, path, subset = 'train', index = None, seqlen = 35):
     super(WikiSentences, self)
     self.path = path
     self.subset = subset
     self.file = os.path.join(self.path, self.subset + '.txt')
     self.index = index if index is not None else Index()
     self.load()
+    self.seqlen = seqlen
+    self.sequences = len(self.data) - self.seqlen
     
   def __len__(self):
-    return len(self.data)
+    return self.sequences - 1
 
   def __getitem__(self, index):
-    self.data[index]
+    # get the sequence for index 
+    x = self.data[index : index+self.seqlen]
+    y = self.data[index + 1 : index+self.seqlen+1]
+    return x, y 
 
 class SpamDataset(torch.utils.data.Dataset):
 
