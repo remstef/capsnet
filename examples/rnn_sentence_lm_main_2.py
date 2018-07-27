@@ -87,20 +87,6 @@ valid_loader = torch.utils.data.DataLoader(train_, batch_size = eval_batch_size,
 # dependence of e. g. 'g' on 'f' can not be learned, but allows more efficient
 # batch processing.
 
-def batchify(data, bsz):
-    # Work out how cleanly we can divide the dataset into bsz parts.
-    nbatch = data.size(0) // bsz
-    # Trim off any extra elements that wouldn't cleanly fit (remainders).
-    data = data.narrow(0, 0, nbatch * bsz)
-    # Evenly divide the data across the bsz batches.
-    data = data.view(bsz, -1).t().contiguous()
-    return data.to(device)
-
-#train_data = batchify(train_.data, args.batch_size)
-#val_data = batchify(valid_.data, eval_batch_size)
-#test_data = batchify(test_.data, eval_batch_size)
-
-
 ###############################################################################
 # Build the model
 ###############################################################################
@@ -121,31 +107,13 @@ def repackage_hidden(h):
     else:
         return tuple(repackage_hidden(v) for v in h)
 
-
-# get_batch subdivides the source data into chunks of length args.bptt.
-# If source is equal to the example output of the batchify function, with
-# a bptt-limit of 2, we'd get the following two Variables for i = 0:
-# ┌ a g m s ┐ ┌ b h n t ┐
-# └ b h n t ┘ └ c i o u ┘
-# Note that despite the name of the function, the subdivison of data is not
-# done along the batch dimension (i.e. dimension 1), since that was handled
-# by the batchify function. The chunks are along dimension 0, corresponding
-# to the seq_len dimension in the LSTM.
-
-def get_batch(source, i):
-    seq_len = min(args.bptt, len(source) - 1 - i)
-    data = source[i:i+seq_len]
-    target = source[i+1:i+1+seq_len].view(-1)
-    return data, target
-
 def reshape_batch(batch_data):
     # dimensions: batch x seqlen
     x_batch, y_batch = batch_data
     # reshape x_batch so seqlen is dim 0 and batch is dim 1
     x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
     # reshape y_batch so we get a 1d tensor of length seqlen x batch that matches with x_batch
-    y_batch = y_batch.transpose(0,1).contiguous().view(-1) # switch dim 0 with dim 1 and view as 1d
-    
+    y_batch = y_batch.transpose(0,1).contiguous().view(-1) # switch dim 0 with dim 1 and view as 1d    
       #####
 #        print(x_batch.size())
 #        print(y_batch.size())
@@ -154,7 +122,6 @@ def reshape_batch(batch_data):
 #        print('--- y')
 #        print(list(index[y_batch.tolist()]))
       #####
-    
     return x_batch, y_batch
 
 
@@ -169,17 +136,13 @@ def evaluate(d_loader):
 
         n = 0
         for batch, batch_data in enumerate(d_loader):
-#        for i in range(0, data_source.size(0) - 1, args.bptt):
-
             data, targets = reshape_batch(batch_data)
-
             output, hidden = model(data, hidden)
             output_flat = output.view(-1, ntokens)
             total_loss += len(data) * criterion(output_flat, targets).item()
             hidden = repackage_hidden(hidden)
             n += 1
-#    return total_loss / len(data_source)
-    return total_loss / n
+    return total_loss / len(d_loader)
 
 
 def train():
@@ -190,10 +153,8 @@ def train():
     ntokens = len(index)
     hidden = model.init_hidden(args.batch_size)
     
-#    for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
     for batch, batch_data in enumerate(train_loader):
     
-        # data, targets = get_batch(train_data, i)
         data, targets = reshape_batch(batch_data)
         hidden = repackage_hidden(hidden)
         model.zero_grad()
@@ -230,10 +191,15 @@ def train():
         if batch % args.log_interval == 0 and batch > 0:
             cur_loss = total_loss / args.log_interval
             elapsed = time.time() - start_time
-            print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
-                    'loss {:5.2f} | ppl {:8.2f}'.format(
-                epoch, batch, len(train_loader) // args.bptt, lr,
-                elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
+            print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | loss {:5.2f} | ppl {:8.2f}'.format(
+                epoch, 
+                batch, 
+                len(train_loader), 
+                lr,
+                elapsed * 1000 / args.log_interval, 
+                cur_loss, 
+                math.exp(cur_loss)
+                ))
             total_loss = 0
             start_time = time.time()
 
@@ -256,7 +222,6 @@ try:
     for epoch in range(1, args.epochs+1):
         epoch_start_time = time.time()
         train()
-#        val_loss = evaluate(val_data)
         val_loss = evaluate(valid_loader)
         print('-' * 89)
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '

@@ -116,15 +116,16 @@ class WikiSentences(torch.utils.data.Dataset):
     self.index = index if index is not None else Index()
     self.load()
     self.seqlen = seqlen
-    self.sequences = len(self.data) - self.seqlen
+    self.sequences = len(self.data) // self.seqlen - self.seqlen
     
   def __len__(self):
     return self.sequences - 1
 
   def __getitem__(self, index):
     # get the sequence for index 
-    x = self.data[index : index+self.seqlen]
-    y = self.data[index + 1 : index+self.seqlen+1]
+    skip_index = index * self.seqlen # make sure each sequence is only read once
+    x = self.data[skip_index     : skip_index + self.seqlen    ]
+    y = self.data[skip_index + 1 : skip_index + self.seqlen + 1]
     return x, y 
   
   def cuda(self):
