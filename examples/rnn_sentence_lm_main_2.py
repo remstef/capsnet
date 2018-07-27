@@ -232,7 +232,7 @@ def train():
             elapsed = time.time() - start_time
             print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
                     'loss {:5.2f} | ppl {:8.2f}'.format(
-                epoch, batch, len(train_data) // args.bptt, lr,
+                epoch, batch, len(train_loader) // args.bptt, lr,
                 elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
             total_loss = 0
             start_time = time.time()
@@ -256,7 +256,8 @@ try:
     for epoch in range(1, args.epochs+1):
         epoch_start_time = time.time()
         train()
-        val_loss = evaluate(val_data)
+#        val_loss = evaluate(val_data)
+        val_loss = evaluate(valid_loader)
         print('-' * 89)
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
                 'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
@@ -282,7 +283,8 @@ with open(args.save, 'rb') as f:
     model.rnn.flatten_parameters()
 
 # Run on test data.
-test_loss = evaluate(test_data)
+#test_loss = evaluate(test_data)
+test_loss = evaluate(test_loader)
 print('=' * 89)
 print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
     test_loss, math.exp(test_loss)))
