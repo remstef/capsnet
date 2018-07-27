@@ -163,7 +163,7 @@ def train():
 #        print('--- targets')
 #        print(targets.size())
 #        print(list(index[targets.tolist()]))
-        sys.exit()
+#        sys.exit()
         # Starting each batch, we detach the hidden state from how it was previously produced.
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
         hidden = repackage_hidden(hidden)
