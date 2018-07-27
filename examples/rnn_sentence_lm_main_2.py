@@ -72,8 +72,8 @@ index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
 
 eval_batch_size = 10
 train_loader = torch.utils.data.DataLoader(train_, batch_size = args.batch_size, drop_last = True, num_workers = 0)
-test_loader = torch.utils.data.DataLoader(train_, batch_size = eval_batch_size, drop_last = True, num_workers = 0)
-valid_loader = torch.utils.data.DataLoader(train_, batch_size = eval_batch_size, drop_last = True, num_workers = 0)
+test_loader = torch.utils.data.DataLoader(test_, batch_size = eval_batch_size, drop_last = True, num_workers = 0)
+valid_loader = torch.utils.data.DataLoader(valid_, batch_size = eval_batch_size, drop_last = True, num_workers = 0)
 
 # Starting from sequential data, batchify arranges the dataset into columns.
 # For instance, with the alphabet as the sequence and batch size 4, we'd get
@@ -134,14 +134,12 @@ def evaluate(d_loader):
     hidden = model.init_hidden(eval_batch_size)
     with torch.no_grad():
 
-        n = 0
         for batch, batch_data in enumerate(d_loader):
             data, targets = reshape_batch(batch_data)
             output, hidden = model(data, hidden)
             output_flat = output.view(-1, ntokens)
             total_loss += len(data) * criterion(output_flat, targets).item()
             hidden = repackage_hidden(hidden)
-            n += 1
     return total_loss / len(d_loader)
 
 
@@ -224,9 +222,12 @@ try:
         train()
         val_loss = evaluate(valid_loader)
         print('-' * 89)
-        print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
-                'valid ppl {:8.2f}'.format(epoch, (time.time() - epoch_start_time),
-                                           val_loss, math.exp(val_loss)))
+        print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | valid ppl {:8.2f}'.format(
+            epoch, 
+            (time.time() - epoch_start_time), 
+            val_loss, 
+            math.exp(val_loss)
+            ))
         print('-' * 89)
         # Save the model if the validation loss is the best we've seen so far.
         if not best_val_loss or val_loss < best_val_loss:
