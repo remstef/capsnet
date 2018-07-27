@@ -65,9 +65,9 @@ device = torch.device("cuda" if args.cuda else "cpu")
 # Load data
 ###############################################################################
 index = Index()
-train_ = WikiSentences(args.data, subset='train', index = index, seqlen = args.bptt)
-test_ = WikiSentences(args.data, subset='test', index = index, seqlen = args.bptt)
-valid_ = WikiSentences(args.data, subset='valid', index = index, seqlen = args.bptt)
+train_ = WikiSentences(args.data, subset='train', index = index, seqlen = args.bptt).to(device)
+test_ = WikiSentences(args.data, subset='test', index = index, seqlen = args.bptt).to(device)
+valid_ = WikiSentences(args.data, subset='valid', index = index, seqlen = args.bptt).to(device)
 index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
 
 eval_batch_size = 10
