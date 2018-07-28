@@ -176,13 +176,15 @@ def on_forward(state):
      
 def on_start_epoch(state):
   global hidden
+  model.train()
   hidden = model.init_hidden(args.batch_size)
   state['iterator'] = tqdm(state['iterator'])
 
 def on_end_epoch(state):
+  global hidden
   model.eval()
+  hidden = model.init_hidden(eval_batch_size)
   engine.test(processor, valid_loader)
-  model.train()
 
 engine.hooks['on_start'] = on_start
 engine.hooks['on_start_epoch'] = on_start_epoch  
@@ -195,5 +197,6 @@ dummyoptimizer = torch.optim.Adam([torch.autograd.Variable(torch.Tensor(1), requ
 engine.train(processor, train_loader, maxepoch=args.epochs, optimizer=dummyoptimizer)
 
 model.eval()
+hidden = model.init_hidden(eval_batch_size)
 engine.test(processor, test_loader)
 
