@@ -15,9 +15,9 @@ import torch.onnx
 
 from data import WikiSentences
 from index import Index
-from embedding import Embedding, FastTextEmbedding
+from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
 
-import rnn_sentence_lm_net as model
+import rnnlm_net as model
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='../data/wikisentences',
@@ -54,6 +54,8 @@ parser.add_argument('--save', type=str, default='model.pt',
                     help='path to save the final model')
 parser.add_argument('--onnx-export', type=str, default='',
                     help='path to export the final model in onnx format')
+parser.add_argument('--init_weights', type=str, default='',
+                    help='path to initial embedding. Note: emsize and nhid will be overridden to match size of pre-loaded embedding')
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
@@ -75,26 +77,25 @@ valid_ = WikiSentences(args.data, subset='valid', index = index, seqlen = args.b
 index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
 
 # load pre embedding
-preemb = FastTextEmbedding('../data/wiki.simple.bin').load()
-preemb = Embedding.filteredEmbedding(index.vocabulary(), preemb, fillmissing = True)
-preemb_weights = torch.Tensor(preemb.weights)
+if args.init_weights:
+  # determine type of embedding by checking it's suffix
+  if args.init_weights.endswith('bin'):
+    preemb = FastTextEmbedding(args.init_weights, normalize = True).load()
+  elif args.init_weights.endswith('txt'):
+    preemb = TextEmbedding(args.init_weights, vectordim = args.emsize).load(normalize = True)
+  elif args.init_weights.endswith('rand'):
+    preemb = RandomEmbedding(vectordim = args.emsize)
+  else:
+    raise ValueError('Type of embedding cannot be inferred.')
+  preemb = Embedding.filteredEmbedding(index.vocabulary(), preemb, fillmissing = True)
+  preemb_weights = torch.Tensor(preemb.weights)
+else:
+  preemb_weights = None
 
 eval_batch_size = 10
-train_loader = torch.utils.data.DataLoader(train_, batch_size = args.batch_size, drop_last = True, num_workers = 0)
+train_loader = torch.utils.data.DataLoader(train_, batch_size = args.batch_size, shuffle = True, drop_last = True, num_workers = 0)
 test_loader = torch.utils.data.DataLoader(test_, batch_size = eval_batch_size, drop_last = True, num_workers = 0)
 valid_loader = torch.utils.data.DataLoader(valid_, batch_size = eval_batch_size, drop_last = True, num_workers = 0)
-
-# Starting from sequential data, batchify arranges the dataset into columns.
-# For instance, with the alphabet as the sequence and batch size 4, we'd get
-# ┌ a g m s ┐
-# │ b h n t │
-# │ c i o u │
-# │ d j p v │
-# │ e k q w │
-# └ f l r x ┘.
-# These columns are treated as independent by the model, which means that the
-# dependence of e. g. 'g' on 'f' can not be learned, but allows more efficient
-# batch processing.
 
 ###############################################################################
 # Build the model

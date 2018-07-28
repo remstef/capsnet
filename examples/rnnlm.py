@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.onnx
 
 from data import WikiSentences, Index
-import rnn_sentence_lm_net as model
+import rnnlm_net as model
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='../data/wikisentences',

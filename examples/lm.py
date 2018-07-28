@@ -34,7 +34,7 @@ def create_embedding_weights(emb, vocab = None):
 def create_embedding_layer(weights, trainable = False):
   num_embeddings, embedding_dim = weights.size()
 #  emb_layer = torch.nn.Embedding(num_embeddings, embedding_dim)
-#  emb_layer.load_state_dict({'weight': weights_matrix})
+#  emb_layer.load_state_dict({'weight': weights})
 #  if not trainable:
 #      emb_layer.weight.requires_grad = False
   emb_layer = torch.nn.Embedding.from_pretrained(weights, freeze = not trainable)
