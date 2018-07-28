@@ -24,9 +24,9 @@ parser.add_argument('--data', type=str, default='../data/wikisentences',
                     help='location of the data corpus')
 parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
-parser.add_argument('--emsize', type=int, default=300,
+parser.add_argument('--emsize', type=int, default=200,
                     help='size of word embeddings')
-parser.add_argument('--nhid', type=int, default=300,
+parser.add_argument('--nhid', type=int, default=200,
                     help='number of hidden units per layer')
 parser.add_argument('--nlayers', type=int, default=2,
                     help='number of layers')
@@ -55,7 +55,7 @@ parser.add_argument('--save', type=str, default='model.pt',
 parser.add_argument('--onnx-export', type=str, default='',
                     help='path to export the final model in onnx format')
 parser.add_argument('--init_weights', type=str, default='',
-                    help='path to initial embedding. Note: emsize and nhid will be overridden to match size of pre-loaded embedding')
+                    help='path to initial embedding. emsize must match size of embedding')
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
@@ -81,6 +81,8 @@ if args.init_weights:
   # determine type of embedding by checking it's suffix
   if args.init_weights.endswith('bin'):
     preemb = FastTextEmbedding(args.init_weights, normalize = True).load()
+    if args.emsize != preemb.dim():
+      raise ValueError('emsize must match embedding size. Expected %d but got %d)' % (args.emsize, preemb.dim()))
   elif args.init_weights.endswith('txt'):
     preemb = TextEmbedding(args.init_weights, vectordim = args.emsize).load(normalize = True)
   elif args.init_weights.endswith('rand'):
