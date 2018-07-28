@@ -24,9 +24,9 @@ parser.add_argument('--data', type=str, default='../data/wikisentences',
                     help='location of the data corpus')
 parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
-parser.add_argument('--emsize', type=int, default=200,
+parser.add_argument('--emsize', type=int, default=300,
                     help='size of word embeddings')
-parser.add_argument('--nhid', type=int, default=200,
+parser.add_argument('--nhid', type=int, default=300,
                     help='number of hidden units per layer')
 parser.add_argument('--nlayers', type=int, default=2,
                     help='number of layers')
@@ -76,8 +76,8 @@ index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
 
 # load pre embedding
 preemb = FastTextEmbedding('../data/wiki.simple.bin').load()
-preemb = Embedding.filterembedding(index.vocabulary(), preemb, fillmissing = False)
-preemb_weights = preemb.weights
+preemb = Embedding.filteredEmbedding(index.vocabulary(), preemb, fillmissing = True)
+preemb_weights = torch.Tensor(preemb.weights)
 
 eval_batch_size = 10
 train_loader = torch.utils.data.DataLoader(train_, batch_size = args.batch_size, drop_last = True, num_workers = 0)
@@ -99,9 +99,17 @@ valid_loader = torch.utils.data.DataLoader(valid_, batch_size = eval_batch_size,
 ###############################################################################
 # Build the model
 ###############################################################################
-
 ntokens = len(index)
-model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied, init_weights = preemb_weights).to(device)
+model = model.RNNModel(
+    rnn_type = args.model, 
+    ntoken = ntokens, 
+    ninp = args.emsize, 
+    nhid = args.nhid, 
+    nlayers = args.nlayers, 
+    dropout = args.dropout, 
+    tie_weights = args.tied, 
+    init_em_weights = preemb_weights, 
+    train_em_weights = True).to(device)
 
 criterion = nn.CrossEntropyLoss()
 

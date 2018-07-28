@@ -6,7 +6,7 @@ class RNNModel(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
     '''https://discuss.pytorch.org/t/lstm-to-bi-lstm/12967'''
 
-    def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False):
+    def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False, init_em_weights=None, train_em_weights=True):
         super(RNNModel, self).__init__()
         self.drop = nn.Dropout(dropout)
         self.encoder = nn.Embedding(ntoken, ninp)
@@ -21,6 +21,7 @@ class RNNModel(nn.Module):
             self.rnn = nn.RNN(ninp, nhid, nlayers, nonlinearity=nonlinearity, dropout=dropout)
         self.decoder = nn.Linear(nhid, ntoken)
 
+        self.init_weights(init_em_weights, train_em_weights)
         # Optionally tie weights as in:
         # "Using the Output Embedding to Improve Language Models" (Press & Wolf 2016)
         # https://arxiv.org/abs/1608.05859
@@ -32,15 +33,19 @@ class RNNModel(nn.Module):
                 raise ValueError('When using the tied flag, nhid must be equal to emsize')
             self.decoder.weight = self.encoder.weight
 
-        self.init_weights()
-
         self.rnn_type = rnn_type
         self.nhid = nhid
         self.nlayers = nlayers
 
-    def init_weights(self):
+    def init_weights(self, weights = None, trainable = True):
         initrange = 0.1
-        self.encoder.weight.data.uniform_(-initrange, initrange)
+        if weights is None:
+          self.encoder.weight.data.uniform_(-initrange, initrange)
+        else:
+          assert weights.size() == self.encoder.weight.size()
+          self.encoder.load_state_dict({'weight': weights})
+          if not trainable:
+            self.encoder.weight.requires_grad = False
         self.decoder.bias.data.zero_()
         self.decoder.weight.data.uniform_(-initrange, initrange)
 

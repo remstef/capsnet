@@ -63,7 +63,7 @@ class Embedding(object):
     return self.vdim
   
   @staticmethod
-  def filterembedding(vocabulary, embedding, fillmissing = True):
+  def filteredEmbedding(vocabulary, embedding, fillmissing = True):
     index = Index()
     weights = []
     if fillmissing:
@@ -84,23 +84,29 @@ class Embedding(object):
 class RandomEmbedding(Embedding):
   
   def __init__(self, vectordim = 300):
-    self.w2id = {}
-    self.id2w = []
+    self.index = Index()
     self.vdim = vectordim
     self.data = np.zeros((0, self.vdim), dtype = np.float32)
     self.invindex = None
   
   def getVector(self, word):
-    if word not in self.w2id:
+    if not self.index.hasWord(word):
+      # create random vector
       v = np.random.rand(self.vdim).astype(np.float32)
-      self.w2id[word] = len(self.id2w)
-      self.id2w.append(word)
+      # normalize
+      length = np.linalg.norm(v)
+      if length == 0:
+        length += 1e-6
+      v = v / length
+      # add
+      idx = self.index.add(self.id2w)
       self.data = np.vstack((self.data, v))
+      assert idx == len(self.data)
       if self.invindex is not None:
         del self.invindex
         self.invindex = None
       return v
-    idx = self.w2id[word]
+    idx = self.index.getId(word)
     return self.data[idx]
     
   def search(self, q, topk = 4):
@@ -122,14 +128,14 @@ class RandomEmbedding(Embedding):
     idx = idx[0,0]
     dist = dist[0,0]
     sim = 1. - dist
-    word = self.id2w[idx]
+    word = self.index.getWord(idx)
     return word, sim
   
   def containsWord(self, word):
     return True
   
   def vocabulary(self):
-    return self.id2w
+    return self.index.vocbulary()
   
   def dim(self):
     return self.vdim
@@ -178,9 +184,8 @@ class TextEmbedding(Embedding):
     self.separator = sep
     
   def load(self, skipheader = True, nlines = sys.maxsize, normalize = False):
-    self.w2id = {}
-    self.id2w = []
-    print('loading data')
+    self.index = Index()
+    print('Loading embedding from %s' % self.file)
     data_ = []
     with open(self.file, 'r', encoding='utf-8', errors='ignore') as f:
       if skipheader:
@@ -192,6 +197,8 @@ class TextEmbedding(Embedding):
           line = line.strip()
           splits = line.split(self.separator)
           word = splits[0]
+          if self.index.hasWord(word):
+            continue
           coefs = np.array(splits[1:self.vdim+1], dtype=np.float32)
           if normalize:
             length = np.linalg.norm(coefs)
@@ -200,9 +207,9 @@ class TextEmbedding(Embedding):
             coefs = coefs / length
           if coefs.shape != (self.vdim,):
             continue
-          self.w2id[word] = len(self.id2w)
-          self.id2w.append(word)
+          idx = self.index.add(word)
           data_.append(coefs)
+          assert idx == len(data_)
         except Exception as err:
           print('Error in line %d' % i, sys.exc_info()[0], file = sys.stderr)
           print(' ', err, file = sys.stderr)
@@ -210,6 +217,8 @@ class TextEmbedding(Embedding):
     self.data = np.array(data_, dtype = np.float32)
     del data_
     print('Building faiss index...')
+    if not self.normalize:
+      print('Attention, normlization of vectors is required to guarantee functional search behaviour. Be sure your vectors are normalized, otherwise declare normlaize flag!')
     self.invindex = faiss.IndexFlatL2(self.vdim)
     self.invindex.add(self.data)
     print('Faiss index built:', self.invindex.is_trained)
@@ -218,8 +227,10 @@ class TextEmbedding(Embedding):
   def getVector(self, word):
     if not self.containsWord(word):
       print("'%s' is unknown." % word, file = sys.stderr)
-      return np.zeros(self.vdim)
-    idx = self.w2id[word]
+      v = np.zeros(self.vdim)
+      v[0] = 1
+      return v
+    idx = self.index.getId(word)
     return self.data[idx]
     
   def search(self, q, topk = 4):
@@ -236,14 +247,14 @@ class TextEmbedding(Embedding):
     idx = idx[0,0]
     dist = dist[0,0]
     sim = 1. - dist
-    word = self.id2w[idx]
+    word = self.index.getWord(idx)
     return word, sim
   
   def containsWord(self, word):
-    return word in self.w2id
+    return self.index.hasWord(word)
   
   def vocabulary(self):
-    return self.id2w
+    return self.index.vocabulary()
   
   def dim(self):
     return self.vdim

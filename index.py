@@ -50,16 +50,11 @@ class Index(object):
   def vocabulary(self):
     return self.id2w
   
-  @staticmethod
-  def fromfile(fname):
-    index = Index()
-    with open(fname, 'r', encoding='utf8') as f:
-      for i, line in enumerate(f):
-        w = line.rstrip()
-        index.id2w.append(w)
-        index.w2id[w] = i
-    return index
-  
+  def __contains__(self, key):
+    if isinstance(key, str):
+      return self.hasWord(key)
+    return self.hasId(key)
+
   def __getitem__(self, key):
     # return the id if we get a word
     if isinstance(key, str):
@@ -75,3 +70,14 @@ class Index(object):
 
   def __len__(self):
     return self.size()
+  
+  @staticmethod
+  def fromfile(fname):
+    index = Index()
+    with open(fname, 'r', encoding='utf8') as f:
+      for i, line in enumerate(f):
+        w = line.rstrip()
+        index.id2w.append(w)
+        index.w2id[w] = i
+    return index
+  

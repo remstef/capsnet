@@ -15,14 +15,14 @@ import torch.utils
 import torch.utils.data
 import sys
 from sklearn.preprocessing import MultiLabelBinarizer
-from embedding import Embedding, TextEmbedding, FastTextEmbedding
+from embedding import Embedding, RandomEmbedding, TextEmbedding, FastTextEmbedding
 from index import Index
 
 
 from sklearn.datasets import fetch_20newsgroups
 import pickle
 
-emb = Embedding(300) # random vectors
+emb = RandomEmbedding(300) # random vectors
 #emb = TextEmbedding('./GoogleNews-vectors-negative300.txt').load(nlines = 1000)
 #emb = TextEmbedding('./glove.840B.300d.txt').load(nlines = 1000, skipheader = False, normalize = True, nlines = 1000)
 #emb = FastTextEmbedding('./wiki.en.bin').load()
