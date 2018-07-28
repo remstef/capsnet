@@ -175,6 +175,7 @@ def on_forward(state):
 def on_start_epoch(state):
   global hidden
   state['epoch_start_time'] = time.time()
+  state['total_loss'] = 0.
   model.train()
   hidden = model.init_hidden(args.batch_size)
   state['iterator'] = tqdm(state['iterator'])
