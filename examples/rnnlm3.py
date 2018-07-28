@@ -136,7 +136,7 @@ def repackage_hidden(h):
     else:
         return tuple(repackage_hidden(v) for v in h)
 
-def processor(batch_data):
+def process(batch_data):
   global hidden, lr
   
   x_batch, y_batch, is_training = batch_data
@@ -160,22 +160,21 @@ def processor(batch_data):
 
   
 def on_start(state):
-  print('start')
+  pass
   
 def on_sample(state):
   state['sample'].append(state['train'])
   
 def on_forward(state):
   # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-  torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
+  torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
   for p in model.parameters():
       p.data.add_(-lr, p.grad.data)
+  state['total_loss'] = state['loss'].item()
   
-#  meter_accuracy.add(state['output'].data, torch.LongTensor(state['sample'][1]))
-#  meter_loss.add(state['loss'].item())
-     
 def on_start_epoch(state):
   global hidden
+  state['epoch_start_time'] = time.time()
   model.train()
   hidden = model.init_hidden(args.batch_size)
   state['iterator'] = tqdm(state['iterator'])
@@ -184,7 +183,17 @@ def on_end_epoch(state):
   global hidden
   model.eval()
   hidden = model.init_hidden(eval_batch_size)
-  engine.test(processor, valid_loader)
+  engine.test(process, valid_loader)
+  
+  total_loss = state['total_loss']
+  print('-' * 89)
+  print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | valid ppl {:8.2f}'.format(
+      state['epoch'], 
+      (time.time() - state['epoch_start_time']), 
+      total_loss, 
+      math.exp(total_loss)
+      ))
+  print('-' * 89)
 
 engine.hooks['on_start'] = on_start
 engine.hooks['on_start_epoch'] = on_start_epoch  
@@ -194,9 +203,9 @@ engine.hooks['on_end_epoch'] = on_end_epoch
 
 dummyoptimizer = torch.optim.Adam([torch.autograd.Variable(torch.Tensor(1), requires_grad = True)])
 
-engine.train(processor, train_loader, maxepoch=args.epochs, optimizer=dummyoptimizer)
+engine.train(process, train_loader, maxepoch=args.epochs, optimizer=dummyoptimizer)
 
 model.eval()
 hidden = model.init_hidden(eval_batch_size)
-engine.test(processor, test_loader)
+engine.test(process, test_loader)
 
