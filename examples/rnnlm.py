@@ -7,6 +7,7 @@ import argparse
 import time
 import math
 import os
+import random
 import torch
 import torch.nn as nn
 import torch.onnx
@@ -160,7 +161,9 @@ def train():
     start_time = time.time()
     ntokens = len(index)
     hidden = model.init_hidden(args.batch_size)
-    for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
+    ix = list(range(0, train_data.size(0) - 1, args.bptt))
+    random.shuffle(ix)
+    for batch, i in enumerate(ix):
         data, targets = get_batch(train_data, i)
         hidden = repackage_hidden(hidden)
         model.zero_grad()
