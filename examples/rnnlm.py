@@ -11,7 +11,9 @@ import torch
 import torch.nn as nn
 import torch.onnx
 
-from data import WikiSentences, Index
+from data import WikiSentences
+from utils import Index
+
 import rnnlm_net as model
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')

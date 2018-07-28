@@ -16,7 +16,7 @@ import torch.utils.data
 import sys
 from sklearn.preprocessing import MultiLabelBinarizer
 from embedding import Embedding, RandomEmbedding, TextEmbedding, FastTextEmbedding
-from index import Index
+from utils import Index
 
 
 from sklearn.datasets import fetch_20newsgroups

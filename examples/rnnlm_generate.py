@@ -14,7 +14,7 @@ import argparse
 import os
 import torch
 
-from data import Index
+from utils import Index
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 Language Model')
 

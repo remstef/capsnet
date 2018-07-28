@@ -10,7 +10,7 @@ import numpy as np
 import sys
 import faiss
 from pyfasttext import FastText
-from index import Index
+from utils import Index
 
 class Embedding(object):
   

@@ -6,6 +6,9 @@ Created on Fri Jul 27 20:15:22 2018
 @author: rem
 """
 
+import random
+import torch
+
 class Index(object):
   
   def __init__(self):
@@ -80,4 +83,14 @@ class Index(object):
         index.id2w.append(w)
         index.w2id[w] = i
     return index
+
+class RandomBatchSampler(torch.utils.data.sampler.BatchSampler):
   
+  def __init__(self, *args, **kwargs):
+    super(RandomBatchSampler, self).__init__(*args, **kwargs)
+    
+  def __iter__(self):
+    batches = list(super().__iter__())
+    random.shuffle(batches)
+    for batch in batches:
+      yield batch

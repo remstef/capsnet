@@ -14,11 +14,12 @@ import torch.nn as nn
 import torch.onnx
 
 from data import WikiSentences
-from index import Index
+from utils import Index, RandomBatchSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
 
 import rnnlm_net as model
 
+    
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='../data/wikisentences',
                     help='location of the data corpus')
@@ -95,9 +96,14 @@ else:
   preemb_weights = None
 
 eval_batch_size = 10
-train_loader = torch.utils.data.DataLoader(train_, batch_size = args.batch_size, shuffle = True, drop_last = True, num_workers = 0)
-test_loader = torch.utils.data.DataLoader(test_, batch_size = eval_batch_size, drop_last = True, num_workers = 0)
-valid_loader = torch.utils.data.DataLoader(valid_, batch_size = eval_batch_size, drop_last = True, num_workers = 0)
+
+#train_loader = torch.utils.data.DataLoader(train_, batch_size = args.batch_size, shuffle = False, drop_last = True, num_workers = 0)
+#test_loader = torch.utils.data.DataLoader(test_, batch_size = eval_batch_size, shuffle = False, drop_last = True, num_workers = 0)
+#valid_loader = torch.utils.data.DataLoader(valid_, batch_size = eval_batch_size, shuffle = False, drop_last = True, num_workers = 0)
+
+train_loader = torch.utils.data.DataLoader(train_, batch_sampler = RandomBatchSampler(torch.utils.data.sampler.SequentialSampler(train_), batch_size=args.batch_size, drop_last = True), num_workers = 0)
+test_loader = torch.utils.data.DataLoader(test_, batch_sampler = RandomBatchSampler(torch.utils.data.sampler.SequentialSampler(test_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
+valid_loader = torch.utils.data.DataLoader(valid_, batch_sampler = RandomBatchSampler(torch.utils.data.sampler.SequentialSampler(valid_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
 
 ###############################################################################
 # Build the model
