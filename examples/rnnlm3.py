@@ -170,7 +170,7 @@ def on_forward(state):
   torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
   for p in model.parameters():
       p.data.add_(-lr, p.grad.data)
-  state['total_loss'] = state['loss'].item()
+  state['total_loss'] += state['loss'].item()
   
 def on_start_epoch(state):
   global hidden
@@ -186,6 +186,7 @@ def on_end_epoch(state):
   hidden = model.init_hidden(eval_batch_size)
   engine.test(process, valid_loader)
   
+  # TODO: total loss is wrong!!!
   total_loss = state['total_loss']
   print('-' * 89)
   print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | valid ppl {:8.2f}'.format(
