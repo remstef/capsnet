@@ -217,7 +217,7 @@ try:
   engine.hooks['on_end_epoch'] = on_end_epoch
   
   dummyoptimizer = torch.optim.Adam([torch.autograd.Variable(torch.Tensor(1), requires_grad = True)])
-  optimizer = torch.optim.Adam(model.parameters, lr = 1)
+  optimizer = torch.optim.Adam(model.parameters(), lr = 1)
   
   ###############################################################################
   # run training
