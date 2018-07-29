@@ -183,16 +183,17 @@ try:
     val_loss = test_state['total_test_loss'] / len(test_state['iterator'])
     train_loss = state['total_train_loss'] / len(state['iterator'])
     
-    print('++ Epoch {:03d} took {:06.2f}s ++ {:s}'.format(
+    print('++ Epoch {:03d} took {:06.2f}s (lr {:5.{lrprec}f}})++ {:s}'.format(
         state['epoch'], 
         (time.time() - state['epoch_start_time']),
-        '-'*60))
-    print('| train loss {:5.2f} | valid loss {:5.2f} | train ppl {:8.2f} | valid ppl {:8.2f} | lr {:.5f}'.format( 
+        lr,
+        '-'*60,
+        lrprec=2 if lr >= 1 else 5))
+    print('| train loss {:5.2f} | valid loss {:5.2f} | train ppl {:8.2f} | valid ppl {:8.2f}'.format( 
         train_loss, 
         val_loss,
         math.exp(train_loss),
-        math.exp(val_loss),
-        lr
+        math.exp(val_loss)
         ))
     print('-' * 89)
     
