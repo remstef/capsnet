@@ -34,7 +34,7 @@ try:
                       help='number of layers')
   parser.add_argument('--lr', type=float, default=20,
                       help='initial learning rate')
-  parser.add_argument('--lr_decay', type=float, default=0.66,
+  parser.add_argument('--lr_decay', type=float, default=0.25,
                       help='decay learining learning rate if no validation improvement occurs')
   parser.add_argument('--clip', type=float, default=0.25,
                       help='gradient clipping')
