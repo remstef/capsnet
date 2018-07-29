@@ -126,9 +126,9 @@ def evalfun(cmd):
           ),
     'savemodel': lambda:
       save_model(
-          file = input('Type filename: '), 
-          tocpu = str.lower(str.strip(input('Type yes if the model should be converted to cpu first (default: yes).'))) in ['','yes'],
-          onnxformat = 'yes' == str.lower(str.strip(input('Type yes if the model should be saved in onnx format (default: no).')))
+          fname = input('Type filename: '), 
+          tocpu = str.lower(str.strip(input('Type yes if the model should be converted to cpu first (default: yes):'))) in ['','yes'],
+          onnxformat = 'yes' == str.lower(str.strip(input('Type yes if the model should be saved in onnx format (default: no):')))
           ),
     'help': lambda: 
       print('Type a valid command or CTRL-C to quit. \nValid commands: \n  ' + '\n  '.join(list(commands.keys()))) 
