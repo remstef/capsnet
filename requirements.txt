@@ -1,0 +1,11 @@
+# conda install faiss-cpu -c pytorch
+cython>=0.28.4
+cysignals>=1.7.2
+pandas>=0.23.2
+numpy>=1.14.5
+scikit-learn>=0.19.1
+torch>=0.4.0
+torchvision>=0.2.1
+spacy>=2.0.11
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-2.0.0/en_core_web_sm-2.0.0.tar.gz#egg=en-core-web-sm
+pyfasttext>=0.4.5
