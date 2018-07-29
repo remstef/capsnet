@@ -144,7 +144,7 @@ try:
     output_flat = output.view(-1, ntokens)
     targets_flat = y_batch.contiguous().view(-1)  
     loss = criterion(output_flat, targets_flat)
-    print(loss.item())
+#    print(loss.item())
     return loss, output_flat
     
   def on_start(state):
