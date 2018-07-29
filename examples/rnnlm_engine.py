@@ -161,7 +161,7 @@ try:
   def on_forward(state):
     if state['train']:
       # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-#      torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+      torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
 #      for p in model.parameters():
 #        p.data.add_(-lr, p.grad.data)
       state['total_train_loss'] += state['loss'].item()
@@ -180,7 +180,7 @@ try:
     
     model.eval()
     hidden = model.init_hidden(eval_batch_size)
-    test_state = engine.test(process, tqdm(valid_loader, ncols=89, desc='test'))
+    test_state = engine.test(process, tqdm(valid_loader, ncols=89, desc='test '))
     val_loss = test_state['total_test_loss'] / len(test_state['iterator'])
     train_loss = state['total_train_loss'] / len(state['iterator'])
     
