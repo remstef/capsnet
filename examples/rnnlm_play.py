@@ -109,8 +109,13 @@ def evalfun(cmd):
     'help': lambda: 
       print('Type a valid command or CTRL-C to quit. \nValid commands: \n  ' + '\n  '.join(list(commands.keys()))) 
   }
-  commands.get(cmd, commands['help'])()
-
+  cmdfun = commands.get(cmd, commands['help'])
+  try:
+    cmdfun()
+  except Exception as err:
+    print(err, file=sys.stderr)
+    print('Exception occurred!')
+    commands['help']()
 
 SimpleRepl(evalfun).run()
 
