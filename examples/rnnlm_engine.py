@@ -182,10 +182,10 @@ try:
     val_loss = test_state['total_test_loss'] / len(test_state['iterator'])
     train_loss = state['total_train_loss'] / len(state['iterator'])
     
-    print('++ Epoch {:3d} -- {:5.2f}s {:s}'.format(
+    print('++ Epoch {:03d} took {:06.2f}s ++ {:s}'.format(
         state['epoch'], 
         (time.time() - state['epoch_start_time']),
-        '-'*62))
+        '-'*60))
     print('| train loss {:5.2f} | valid loss {:5.2f} | train ppl {:8.2f} | valid ppl {:8.2f}'.format( 
         train_loss, 
         val_loss,
@@ -231,7 +231,7 @@ try:
   val_loss = final_state['best_val_loss'] / len(final_state['iterator'])
   test_state = engine.test(process, test_loader)
   test_loss = test_state['total_test_loss'] / len(test_state['iterator'])
-  print('++ End of training ' + '='*70)
+  print('++ End of training ++ ' + '='*67)
   print('| val loss {:5.2f} | test loss {:5.2f} | val ppl {:8.2f} | test ppl {:8.2f}'.format(
       val_loss,
       test_loss, 
