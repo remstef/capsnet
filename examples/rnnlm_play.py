@@ -97,16 +97,18 @@ def nearest_neighbors(word = '<eos>', numneighbors = 10, fout = sys.stdout):
     
 def save_model(fname, tocpu=True, onnxformat=False):
   if tocpu:
+    print('Moving model to cpu.')
     model_ = model.cpu()
   
   if not onnxformat:
+    print('Using pytorch native export.')
     with open(fname, 'wb') as f:
       torch.save(model_, f)
     return
 
-  print('The model is beeing exported in ONNX format at {}'.format(os.path.realpath(fname)))
+  print('The model is beeing exported in ONNX format to {}'.format(os.path.realpath(fname)))
   seqlen, batchsize = 35, 20
-  dummy_input = torch.LongTensor(seqlen * batchsize).zero_().view(-1, batchsize)#.to(device)
+  dummy_input = torch.LongTensor(seqlen * batchsize).zero_().view(-1, batchsize).to(model.device)
   hidden = model.init_hidden(batchsize)
   torch.onnx.export(model, (dummy_input, hidden), fname)
 
@@ -125,8 +127,8 @@ def evalfun(cmd):
     'savemodel': lambda:
       save_model(
           file = input('Type filename: '), 
-          tocpu = 'no' == str.lower(str.strip(input('Type no if the model should not be converted to cpu first.'))),
-          onnxformat = 'yes' == str.lower(str.strip(input('Type yes if the model should be saved in onnx format.')))
+          tocpu = str.lower(str.strip(input('Type yes if the model should be converted to cpu first (default: yes).'))) in ['','yes'],
+          onnxformat = 'yes' == str.lower(str.strip(input('Type yes if the model should be saved in onnx format (default: no).')))
           ),
     'help': lambda: 
       print('Type a valid command or CTRL-C to quit. \nValid commands: \n  ' + '\n  '.join(list(commands.keys()))) 
