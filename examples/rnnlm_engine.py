@@ -181,16 +181,18 @@ try:
     test_state = engine.test(process, valid_loader)
     val_loss = test_state['total_test_loss'] / len(test_state['iterator'])
     train_loss = state['total_train_loss'] / len(state['iterator'])
-    print('-' * 103)
-    print('| epoch {:3d} took {:5.2f}s | train loss {:5.2f} | valid loss {:5.2f} | train ppl {:8.2f} | valid ppl {:8.2f}'.format(
+    
+    print('++ Epoch {:3d} -- {:5.2f}s {:s}'.format(
         state['epoch'], 
-        (time.time() - state['epoch_start_time']), 
+        (time.time() - state['epoch_start_time']),
+        '-'*62))
+    print('| train loss {:5.2f} | valid loss {:5.2f} | train ppl {:8.2f} | valid ppl {:8.2f}'.format( 
         train_loss, 
         val_loss,
         math.exp(train_loss),
         math.exp(val_loss),
         ))
-    print('-' * 103)
+    print('-' * 89)
     
      # Save the model if the validation loss is the best we've seen so far.
     if val_loss < state['best_val_loss']:
@@ -216,7 +218,6 @@ try:
   # run training
   ###############################################################################
   
-  
   final_state = engine.train(process, train_loader, maxepoch=args.epochs, optimizer=dummyoptimizer)
   
   # Load the best saved model.
@@ -230,13 +231,13 @@ try:
   val_loss = final_state['best_val_loss'] / len(final_state['iterator'])
   test_state = engine.test(process, test_loader)
   test_loss = test_state['total_test_loss'] / len(test_state['iterator'])
-  print('=' * 103)
-  print('| End of training | val loss {:5.2f} | test loss {:5.2f} | val ppl {:8.2f} | test ppl {:8.2f}'.format(
+  print('++ End of training ' + '='*70)
+  print('| val loss {:5.2f} | test loss {:5.2f} | val ppl {:8.2f} | test ppl {:8.2f}'.format(
       val_loss,
       test_loss, 
       math.exp(val_loss),
       math.exp(test_loss)))
-  print('=' * 103)
+  print('=' * 89)
 
 except (KeyboardInterrupt, SystemExit):
   print('Process cancelled')

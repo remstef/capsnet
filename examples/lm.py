@@ -5,7 +5,6 @@ Created on Wed Jul 25 17:35:21 2018
 
 @author: rem
 """
-
 import sys
 if not '..' in sys.path: sys.path.append('..')
 
