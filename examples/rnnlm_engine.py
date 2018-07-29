@@ -141,6 +141,7 @@ try:
     if is_training:
       model.zero_grad()
     output, hidden = model(x_batch, hidden)  
+    output, hidden = model(x_batch)  
     output_flat = output.view(-1, ntokens)
     targets_flat = y_batch.contiguous().view(-1)  
     loss = criterion(output_flat, targets_flat)
@@ -161,8 +162,8 @@ try:
     if state['train']:
       # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
       torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-      for p in model.parameters():
-        p.data.add_(-lr, p.grad.data)
+#      for p in model.parameters():
+#        p.data.add_(-lr, p.grad.data)
       state['total_train_loss'] += state['loss'].item()
     state['total_test_loss'] += state['loss'].item()
     
@@ -216,12 +217,13 @@ try:
   engine.hooks['on_end_epoch'] = on_end_epoch
   
   dummyoptimizer = torch.optim.Adam([torch.autograd.Variable(torch.Tensor(1), requires_grad = True)])
+  optimizer = torch.optim.Adam(model.parameters, lr = 1)
   
   ###############################################################################
   # run training
   ###############################################################################
   
-  final_state = engine.train(process, train_loader, maxepoch=args.epochs, optimizer=dummyoptimizer)
+  final_state = engine.train(process, train_loader, maxepoch=args.epochs, optimizer=optimizer)
   
   # Load the best saved model.
   with open(args.save, 'rb') as f:
