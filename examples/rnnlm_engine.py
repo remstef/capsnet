@@ -141,7 +141,6 @@ try:
     if is_training:
       model.zero_grad()
     output, hidden = model(x_batch, hidden)  
-    output, hidden = model(x_batch)  
     output_flat = output.view(-1, ntokens)
     targets_flat = y_batch.contiguous().view(-1)  
     loss = criterion(output_flat, targets_flat)
