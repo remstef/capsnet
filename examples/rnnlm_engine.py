@@ -227,14 +227,11 @@ try:
   # Run on test data.
   #model.eval()
   #hidden = model.init_hidden(eval_batch_size)
-  val_loss = final_state['best_val_loss'] / len(final_state['iterator'])
   test_state = engine.test(process, tqdm(test_loader, ncols=89, desc='test'))
   test_loss = test_state['total_test_loss'] / len(test_state['iterator'])
   print('++ End of training ++ ' + '='*67)
-  print('| val loss {:5.2f} | test loss {:5.2f} | val ppl {:8.2f} | test ppl {:8.2f}'.format(
-      val_loss,
+  print('| test loss {:5.2f} | val ppl {:8.2f} '.format(
       test_loss, 
-      math.exp(val_loss),
       math.exp(test_loss)))
   print('=' * 89)
 
