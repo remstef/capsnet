@@ -10,6 +10,8 @@ import time
 import math
 import os
 import torch
+import torchnet
+from tqdm import tqdm
 
 from data import WikiSentences
 from utils import Index, RandomBatchSampler
@@ -117,9 +119,6 @@ try:
   ###############################################################################
   # Set up Engine
   ###############################################################################
-   
-  import torchnet
-  from tqdm import tqdm
   
   def repackage_hidden(h):
     """Wraps hidden states in new Tensors, to detach them from their history."""
@@ -171,7 +170,7 @@ try:
     state['total_train_loss'] = 0.
     model.train()
     hidden = model.init_hidden(args.batch_size)
-    state['iterator'] = tqdm(state['iterator'])
+    state['iterator'] = tqdm(state['iterator'], ncols=89, desc='train')
   
   def on_end_epoch(state):
     global hidden, lr
