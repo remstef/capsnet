@@ -10,8 +10,6 @@ import time
 import math
 import os
 import torch
-import torch.nn as nn
-import torch.onnx
 
 from data import WikiSentences
 from utils import Index, RandomBatchSampler
@@ -19,7 +17,6 @@ from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbeddi
 
 import rnnlm_net as model
 
-    
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='../data/wikisentences',
                     help='location of the data corpus')
@@ -53,8 +50,6 @@ parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
 parser.add_argument('--save', type=str, default='model.pt',
                     help='path to save the final model')
-parser.add_argument('--onnx-export', type=str, default='',
-                    help='path to export the final model in onnx format')
 parser.add_argument('--init_weights', type=str, default='',
                     help='path to initial embedding. emsize must match size of embedding')
 args = parser.parse_args()
@@ -120,7 +115,7 @@ model = model.RNNModel(
     init_em_weights = preemb_weights, 
     train_em_weights = True).to(device)
 
-criterion = nn.CrossEntropyLoss()
+criterion = torch.nn.CrossEntropyLoss()
 
 ###############################################################################
 # Training code
@@ -207,16 +202,6 @@ def train():
             total_loss = 0
             start_time = time.time()
 
-
-def export_onnx(path, batch_size, seq_len):
-    print('The model is also exported in ONNX format at {}'.
-          format(os.path.realpath(args.onnx_export)))
-    model.eval()
-    dummy_input = torch.LongTensor(seq_len * batch_size).zero_().view(-1, batch_size).to(device)
-    hidden = model.init_hidden(batch_size)
-    torch.onnx.export(model, (dummy_input, hidden), path)
-
-
 # Loop over epochs.
 lr = args.lr
 best_val_loss = None
@@ -262,6 +247,3 @@ print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
     test_loss, math.exp(test_loss)))
 print('=' * 89)
 
-if len(args.onnx_export) > 0:
-    # Export the model in ONNX format.
-    export_onnx(args.onnx_export, batch_size=1, seq_len=args.bptt)
