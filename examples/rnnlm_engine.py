@@ -34,6 +34,8 @@ try:
                       help='number of layers')
   parser.add_argument('--lr', type=float, default=20,
                       help='initial learning rate')
+  parser.add_argument('--lr_decay', type=float, default=0.66,
+                      help='decay learining learning rate if no validation improvement occurs')
   parser.add_argument('--clip', type=float, default=0.25,
                       help='gradient clipping')
   parser.add_argument('--epochs', type=int, default=40,
@@ -185,7 +187,7 @@ try:
         state['epoch'], 
         (time.time() - state['epoch_start_time']),
         '-'*60))
-    print('| train loss {:5.2f} | valid loss {:5.2f} | train ppl {:8.2f} | valid ppl {:8.2f}'.format( 
+    print('| train loss {:5.2f} | valid loss {:5.2f} | train ppl {:8.2f} | valid ppl {:8.2f} | lr {:.5f}'.format( 
         train_loss, 
         val_loss,
         math.exp(train_loss),
@@ -200,7 +202,7 @@ try:
         torch.save(model, f)
     else:
       # Anneal the learning rate if no improvement has been seen in the validation dataset.
-      lr /= 4.0
+      lr = lr * args.lr_decay
   
   lr = args.lr
   engine = torchnet.engine.Engine()
