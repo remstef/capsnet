@@ -9,7 +9,6 @@ if not '..' in sys.path: sys.path.append('..')
 ###############################################################################
 
 import argparse
-import os
 import torch
 
 from utils import Index, SimpleRepl
@@ -52,7 +51,7 @@ def load(mfile, ifile):
   model.eval() # deactivate training
   # load index
   print('Loading index', file=sys.stderr)
-  index = Index.fromfile(os.path.join(ifile, 'vocab.txt')).freeze()
+  index = Index.fromfile(ifile).freeze()
   print('Loading embedding', file=sys.stderr)
   emb = Embedding(model.encoder.weights.numpy(), index, normalize = False)
   return model, index, emb
