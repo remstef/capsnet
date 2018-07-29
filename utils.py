@@ -7,7 +7,7 @@ Created on Fri Jul 27 20:15:22 2018
 """
 
 import random
-import torch
+import torch.utils.data
 
 class Index(object):
   
@@ -94,3 +94,22 @@ class RandomBatchSampler(torch.utils.data.sampler.BatchSampler):
     random.shuffle(batches)
     for batch in batches:
       yield batch
+      
+class SimpleRepl(object):
+  def __init__(self, evaluator=lambda cmd: print("You entered '%s'." % cmd), PS1 = '>> '):
+    self.ps1 = PS1
+    self.evaluator = evaluator
+
+  def read(self):
+    return input(self.ps1)
+
+  def evaluate(self):
+    command = self.read()
+    return self.evaluator(command)
+
+  def run(self):
+    while True:
+      try:
+        self.evaluate()
+      except KeyboardInterrupt:
+        break
