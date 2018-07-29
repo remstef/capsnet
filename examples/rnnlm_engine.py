@@ -144,6 +144,7 @@ try:
     output_flat = output.view(-1, ntokens)
     targets_flat = y_batch.contiguous().view(-1)  
     loss = criterion(output_flat, targets_flat)
+    print(loss.item())
     return loss, output_flat
     
   def on_start(state):
@@ -216,7 +217,8 @@ try:
   engine.hooks['on_end_epoch'] = on_end_epoch
   
   dummyoptimizer = torch.optim.Adam([torch.autograd.Variable(torch.Tensor(1), requires_grad = True)])
-  optimizer = torch.optim.Adam(model.parameters(), lr = 1)
+#  optimizer = torch.optim.SGD(model.parameters(), lr = 20)
+  optimizer = torch.optim.Adam(model.parameters(), lr = 0.01)
   
   ###############################################################################
   # run training
@@ -230,8 +232,8 @@ try:
     model.rnn.flatten_parameters()   # after load the rnn params are not a continuous chunk of memory. This makes them a continuous chunk, and will speed up forward pass
   
   # Run on test data.
-  #model.eval()
-  #hidden = model.init_hidden(eval_batch_size)
+  model.eval()
+  hidden = model.init_hidden(eval_batch_size)
   test_state = engine.test(process, tqdm(test_loader, ncols=89, desc='test'))
   test_loss = test_state['total_test_loss'] / len(test_state['iterator'])
   print('++ End of training ++ ' + '='*67)
