@@ -161,7 +161,7 @@ try:
   def on_forward(state):
     if state['train']:
       # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-      torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+#      torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
 #      for p in model.parameters():
 #        p.data.add_(-lr, p.grad.data)
       state['total_train_loss'] += state['loss'].item()
@@ -218,7 +218,7 @@ try:
   
   dummyoptimizer = torch.optim.Adam([torch.autograd.Variable(torch.Tensor(1), requires_grad = True)])
 #  optimizer = torch.optim.SGD(model.parameters(), lr = 20)
-  optimizer = torch.optim.Adam(model.parameters(), lr = 0.01)
+  optimizer = torch.optim.Adam(model.parameters(), lr = 0.001)
   
   ###############################################################################
   # run training
