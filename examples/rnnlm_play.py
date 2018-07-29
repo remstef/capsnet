@@ -65,6 +65,7 @@ def generate(start = '<eos>', seqlen = 35, fout = sys.stdout):
     print("Word '%s' is unknown to the model." % start, file=sys.stderr)
     return
   sequence_input = torch.LongTensor([[ index[start] ]]).to(device)
+  print(start, file=fout, end=' ')
   with torch.no_grad():  # no tracking history
     for i in range(seqlen):
       output, hidden = model(sequence_input, hidden)
@@ -114,28 +115,28 @@ def save_model(fname, tocpu=True, onnxformat=False):
 
 def evalfun(cmd):
   commands = {
-    'g': lambda: commands['generate'],
+    'g': lambda: commands['generate'](),
     'generate': lambda: 
       generate(
           start = input('Type start word: '), 
           seqlen = int(input('Type sequence length: '))
           ),
-    'n': lambda: commands['neighbors'],
+    'n': lambda: commands['neighbors'](),
     'neighbors': lambda:
       nearest_neighbors(
           word = input('Type word: '), 
           numneighbors = int(input('Type number of nearest neighbors: '))
           ),
-    's': lambda: commands['savemodel'],
+    's': lambda: commands['savemodel'](),
     'savemodel': lambda:
       save_model(
           fname = input('Type filename: '), 
           tocpu = str.lower(str.strip(input('Type yes if the model should be converted to cpu first (default: yes):'))) in ['','yes'],
           onnxformat = 'yes' == str.lower(str.strip(input('Type yes if the model should be saved in onnx format (default: no):')))
           ),
-    'h': lambda: commands['help'],
+    'h': lambda: commands['help'](),
     'help': lambda: 
-      print('Type a valid command or CTRL-C to quit. \nValid commands: \n  ' + '\n  '.join(list(commands.keys())))
+      print('Type a valid command or CTRL-C to quit. \nValid commands: \n  ' + '\n  '.join(list(filter(lambda k: len(k) > 1, commands.keys()))))
   }
   cmdfun = commands.get(cmd, commands['help'])
   try:
