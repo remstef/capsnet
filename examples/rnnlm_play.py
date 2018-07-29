@@ -66,7 +66,7 @@ def generate(start = '<eos>', seqlen = 35, fout = sys.stdout):
   sequence_input = torch.LongTensor([[ index[start] ]]).to(device)
   with torch.no_grad():  # no tracking history
     for i in range(seqlen):
-      output, hidden = model(input, hidden)
+      output, hidden = model(sequence_input, hidden)
       word_weights = output.squeeze().div(args.temperature).exp().cpu()
       word_idx = torch.multinomial(word_weights, 1)[0]
       sequence_input.fill_(word_idx)
