@@ -192,6 +192,7 @@ try:
         val_loss,
         math.exp(train_loss),
         math.exp(val_loss),
+        lr
         ))
     print('-' * 89)
     
