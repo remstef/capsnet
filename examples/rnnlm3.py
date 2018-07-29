@@ -126,8 +126,7 @@ lr = args.lr
  
 import torchnet
 from tqdm import tqdm
- 
-engine = torchnet.engine.Engine()
+
 
 def repackage_hidden(h):
     """Wraps hidden states in new Tensors, to detach them from their history."""
@@ -160,42 +159,52 @@ def process(batch_data):
 
   
 def on_start(state):
+  state['total_train_loss'] = 0.
+  state['total_test_loss'] = 0.
+
+def on_end(state):
   pass
   
 def on_sample(state):
   state['sample'].append(state['train'])
   
 def on_forward(state):
-  # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-  torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-  for p in model.parameters():
-      p.data.add_(-lr, p.grad.data)
-  state['total_loss'] += state['loss'].item()
+  if state['train']:
+    # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
+    torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+    for p in model.parameters():
+        p.data.add_(-lr, p.grad.data)
+    state['total_train_loss'] += state['loss'].item()
+  state['total_test_loss'] += state['loss'].item()
   
 def on_start_epoch(state):
   global hidden
   state['epoch_start_time'] = time.time()
-  state['total_loss'] = 0.
+  state['total_train_loss'] = 0.
   model.train()
   hidden = model.init_hidden(args.batch_size)
   state['iterator'] = tqdm(state['iterator'])
 
 def on_end_epoch(state):
   global hidden
+  
   model.eval()
   hidden = model.init_hidden(eval_batch_size)
-  engine.test(process, valid_loader)
-  
-  # TODO: total loss is wrong!!!
-  total_loss = state['total_loss']
+  test_state = engine.test(process, valid_loader)
+  total_test_loss = test_state['total_test_loss'] / len(test_state['iterator'])
+  total_train_loss = state['total_train_loss'] / len(state['iterator'])
   print('-' * 89)
-  print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | valid ppl {:8.2f}'.format(
+  print('| end of epoch {:3d} | time: {:5.2f}s | train loss {:5.2f} | valid loss {:5.2f} | train ppl {:8.2f} | valid ppl {:8.2f}'.format(
       state['epoch'], 
       (time.time() - state['epoch_start_time']), 
-      total_loss, 
-      math.exp(total_loss)
+      total_train_loss, 
+      total_test_loss,
+      math.exp(total_train_loss),
+      math.exp(total_test_loss),
       ))
   print('-' * 89)
+
+engine = torchnet.engine.Engine()
 
 engine.hooks['on_start'] = on_start
 engine.hooks['on_start_epoch'] = on_start_epoch  
