@@ -117,8 +117,7 @@ model = model.RNNModel(
     train_em_weights = True).to(device)
 
 criterion = nn.CrossEntropyLoss()
-hidden = model.init_hidden(args.batch_size)
-lr = args.lr
+hidden = None
 
 ###############################################################################
 # Set up Engine
@@ -127,40 +126,34 @@ lr = args.lr
 import torchnet
 from tqdm import tqdm
 
-
 def repackage_hidden(h):
-    """Wraps hidden states in new Tensors, to detach them from their history."""
-    if isinstance(h, torch.Tensor):
-        return h.detach()
-    else:
-        return tuple(repackage_hidden(v) for v in h)
+  """Wraps hidden states in new Tensors, to detach them from their history."""
+  if isinstance(h, torch.Tensor):
+    return h.detach()
+  else:
+    return tuple(repackage_hidden(v) for v in h)
 
 def process(batch_data):
   global hidden, lr
   
   x_batch, y_batch, is_training = batch_data
-  # reshape x_batch so seqlen is dim 0 and batch is dim 1
+  # reshape x and y batches so seqlen is dim 0 and batch is dim 1
   x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
-  # reshape y_batch so we get a 1d tensor of length seqlen x batch that matches with x_batch
   y_batch = y_batch.transpose(0,1)
-
-  data, targets = x_batch, y_batch
 
   hidden = repackage_hidden(hidden)    
   if is_training:
     model.zero_grad()
-  output, hidden = model(data, hidden)  
+  output, hidden = model(x_batch, hidden)  
   output_flat = output.view(-1, ntokens)
-  targets_flat = targets.contiguous().view(-1)
-  
+  targets_flat = y_batch.contiguous().view(-1)  
   loss = criterion(output_flat, targets_flat)
-
   return loss, output_flat
-
   
 def on_start(state):
   state['total_train_loss'] = 0.
   state['total_test_loss'] = 0.
+  state['best_val_loss'] = sys.maxsize
 
 def on_end(state):
   pass
@@ -173,7 +166,7 @@ def on_forward(state):
     # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
     for p in model.parameters():
-        p.data.add_(-lr, p.grad.data)
+      p.data.add_(-lr, p.grad.data)
     state['total_train_loss'] += state['loss'].item()
   state['total_test_loss'] += state['loss'].item()
   
@@ -186,24 +179,34 @@ def on_start_epoch(state):
   state['iterator'] = tqdm(state['iterator'])
 
 def on_end_epoch(state):
-  global hidden
+  global hidden, lr
   
   model.eval()
   hidden = model.init_hidden(eval_batch_size)
   test_state = engine.test(process, valid_loader)
-  total_test_loss = test_state['total_test_loss'] / len(test_state['iterator'])
-  total_train_loss = state['total_train_loss'] / len(state['iterator'])
+  val_loss = test_state['total_test_loss'] / len(test_state['iterator'])
+  train_loss = state['total_train_loss'] / len(state['iterator'])
   print('-' * 89)
-  print('| end of epoch {:3d} | time: {:5.2f}s | train loss {:5.2f} | valid loss {:5.2f} | train ppl {:8.2f} | valid ppl {:8.2f}'.format(
+  print('| epoch {:3d} took {:5.2f}s | train loss {:5.2f} | valid loss {:5.2f} | train ppl {:8.2f} | valid ppl {:8.2f}'.format(
       state['epoch'], 
       (time.time() - state['epoch_start_time']), 
-      total_train_loss, 
-      total_test_loss,
-      math.exp(total_train_loss),
-      math.exp(total_test_loss),
+      train_loss, 
+      val_loss,
+      math.exp(train_loss),
+      math.exp(val_loss),
       ))
   print('-' * 89)
+  
+   # Save the model if the validation loss is the best we've seen so far.
+  if val_loss < state['best_val_loss']:
+    state['best_val_loss'] = val_loss
+    with open(args.save, 'wb') as f:
+      torch.save(model, f)
+  else:
+    # Anneal the learning rate if no improvement has been seen in the validation dataset.
+    lr /= 4.0
 
+lr = args.lr
 engine = torchnet.engine.Engine()
 
 engine.hooks['on_start'] = on_start
@@ -213,10 +216,25 @@ engine.hooks['on_forward'] = on_forward
 engine.hooks['on_end_epoch'] = on_end_epoch
 
 dummyoptimizer = torch.optim.Adam([torch.autograd.Variable(torch.Tensor(1), requires_grad = True)])
+final_state = engine.train(process, train_loader, maxepoch=args.epochs, optimizer=dummyoptimizer)
 
-engine.train(process, train_loader, maxepoch=args.epochs, optimizer=dummyoptimizer)
+# Load the best saved model.
+with open(args.save, 'rb') as f:
+  model = torch.load(f)
+  model.rnn.flatten_parameters()   # after load the rnn params are not a continuous chunk of memory. This makes them a continuous chunk, and will speed up forward pass
 
-model.eval()
-hidden = model.init_hidden(eval_batch_size)
-engine.test(process, test_loader)
+# Run on test data.
+#model.eval()
+#hidden = model.init_hidden(eval_batch_size)
+test_state = engine.test(process, test_loader)
+val_loss = final_state['best_val_loss'] / len(final_state['iterator'])
+test_loss = test_state['total_test_loss'] / len(test_state['iterator'])
+print('=' * 89)
+print('| End of training | val loss {:5.2f} | test loss {:5.2f} | val ppl {:8.2f} | test ppl {:8.2f}'.format(
+    val_loss,
+    test_loss, 
+    math.exp(val_loss),
+    math.exp(test_loss)))
+print('=' * 89)
+
 

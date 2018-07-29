@@ -181,30 +181,12 @@ def train():
         hidden = repackage_hidden(hidden)
         model.zero_grad()
         output, hidden = model(data, hidden)
-
-##########
-##########
-#        print('--- data')
-#        print(data.size())
-#        print(list(map(list, index[data.tolist()])))
-#        print('--- targets')
-#        print(targets.size())
-#        print(list(index[targets.tolist()]))
-#        print('--- output')
-#        print(output.size())
-#        output_squeezed = output.view(-1, ntokens)
-#        print('--- output view')
-#        print(output_squeezed.size())
-#        print(output_squeezed)
-#        sys.exit()
-##########
-##########
         
         loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
 
         # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-        torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
         for p in model.parameters():
             p.data.add_(-lr, p.grad.data)
 
