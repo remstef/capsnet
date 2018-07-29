@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import os
 if not '..' in sys.path: sys.path.append('..')
 
 ###############################################################################
@@ -83,7 +84,7 @@ def nearest_neighbors(word = '<eos>', numneighbors = 10, fout = sys.stdout):
     return
   
   v = embedding.getVector(word)
-  idxs, dists = embedding.search(v, topk=10)
+  idxs, dists = embedding.search(v, topk=numneighbors)
   idxs = idxs[0,:]
   dists = dists[0,:]
   
@@ -92,7 +93,22 @@ def nearest_neighbors(word = '<eos>', numneighbors = 10, fout = sys.stdout):
         i, 
         idxs[i], 
         dists[i], 
-        index[idxs[i]]))    
+        index[idxs[i]]))  
+    
+def save_model(fname, tocpu=True, onnxformat=False):
+  if tocpu:
+    model_ = model.cpu()
+  
+  if not onnxformat:
+    with open(fname, 'wb') as f:
+      torch.save(model_, f)
+    return
+
+  print('The model is beeing exported in ONNX format at {}'.format(os.path.realpath(fname)))
+  seqlen, batchsize = 35, 20
+  dummy_input = torch.LongTensor(seqlen * batchsize).zero_().view(-1, batchsize)#.to(device)
+  hidden = model.init_hidden(batchsize)
+  torch.onnx.export(model, (dummy_input, hidden), fname)
 
 def evalfun(cmd):
   commands = {
@@ -106,6 +122,12 @@ def evalfun(cmd):
           word = input('Type word: '), 
           numneighbors = int(input('Type number of nearest neighbors: '))
           ),
+    'savemodel': lambda:
+      save_model(
+          file = input('Type filename: '), 
+          tocpu = 'no' == str.lower(str.strip(input('Type no if the model should not be converted to cpu first.'))),
+          onnxformat = 'yes' == str.lower(str.strip(input('Type yes if the model should be saved in onnx format.')))
+          ),
     'help': lambda: 
       print('Type a valid command or CTRL-C to quit. \nValid commands: \n  ' + '\n  '.join(list(commands.keys()))) 
   }
@@ -118,4 +140,3 @@ def evalfun(cmd):
     commands['help']()
 
 SimpleRepl(evalfun).run()
-
