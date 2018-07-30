@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 import torch.onnx
 
-from data import WikiSequence
+from data import WikiSequence, CharSequence
 from utils import Index
 
 from rnn_nets import RNNLM
@@ -65,13 +65,16 @@ device = torch.device("cuda" if args.cuda else "cpu")
 ###############################################################################
 # Load data
 ###############################################################################
-index = Index()
-train_ = WikiSequence(args.data, subset='train', index = index, seqlen = args.bptt, skip = args.bptt)
-test_ = WikiSequence(args.data, subset='test', index = index, seqlen = args.bptt, skip = args.bptt)
-valid_ = WikiSequence(args.data, subset='valid', index = index, seqlen = args.bptt, skip = args.bptt)
-index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
+#index = Index()
+#train_ = WikiSequence(args.data, subset='train', index = index, seqlen = args.bptt, skip = args.bptt)
+#test_ = WikiSequence(args.data, subset='test', index = index, seqlen = args.bptt, skip = args.bptt)
+#valid_ = WikiSequence(args.data, subset='valid', index = index, seqlen = args.bptt, skip = args.bptt)
+#index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
 
-
+train_ = CharSequence(filename='../data/tinyshakespeare.txt', seqlen=args.bptt, skip=args.bptt).to(device)
+test_ = CharSequence(filename='../data/tinyshakespeare.txt', seqlen=args.bptt, skip=args.bptt).to(device)
+valid_ = CharSequence(filename='../data/tinyshakespeare.txt', seqlen=args.bptt, skip=args.bptt).to(device)
+index = train_.index
 
 # Starting from sequential data, batchify arranges the dataset into columns.
 # For instance, with the alphabet as the sequence and batch size 4, we'd get
