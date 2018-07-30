@@ -27,6 +27,39 @@ emb = RandomEmbedding(300) # random vectors
 #emb = TextEmbedding('./glove.840B.300d.txt').load(nlines = 1000, skipheader = False, normalize = True, nlines = 1000)
 #emb = FastTextEmbedding('./wiki.en.bin').load()
 
+
+class CharDataset(torch.utils.data.Dataset):
+  
+  def load(self):
+    print('Loading chars from %s' % self.file, file=sys.stderr)    
+    assert os.path.exists(self.file)    
+    with open(self.file, 'r', encoding='utf8') as f:
+      charsequence = f.read()
+    self.sequence = torch.LongTensor(list(map(lambda c: self.index.add(c), charsequence)))
+    del charsequence
+    
+  def __init__(self, filename, seqlen = 10):
+    super(CharDataset, self)
+    self.file = filename
+    self.index = Index()
+    self.load()
+    self.seqlen = seqlen
+    
+  def __len__(self):
+    return len(self.sequence) - self.seqlen - 1
+
+  def __getitem__(self, index):
+    x = self.sequence[index:index+self.seqlen]
+    y = self.sequence[index+1:index+self.seqlen+1]
+    return x, y 
+  
+  def cuda(self):
+    self.sequence = self.sequence.cuda()
+    return self
+  
+  def to(self, device):
+    self.sequence = self.sequence.to(device)
+    return self
   
 '''
  Sentences as a sequence in a single 1d tensor
@@ -59,14 +92,21 @@ class WikiSentences(torch.utils.data.Dataset):
     self.index = index if index is not None else Index()
     self.load()
     self.seqlen = seqlen
-    self.sequences = len(self.data) // self.seqlen - self.seqlen
+    self.nsequences = (len(self.data) // (seqlen - 1)) - 1
     
   def __len__(self):
-    return self.sequences - 1
+    return self.nsequences
 
   def __getitem__(self, index):
+    # seqlen=4
+    #   abcdefghijkl
+    # 1 ----         
+    # 2    ----       
+    # 3       ----      
+    # 4          xxx
+    #     
     # get the sequence for index 
-    skip_index = index * self.seqlen # make sure each sequence is only read once
+    skip_index = index * (self.seqlen-1) # make sure each sequence is only read once
     x = self.data[skip_index     : skip_index + self.seqlen    ]
     y = self.data[skip_index + 1 : skip_index + self.seqlen + 1]
     return x, y 
