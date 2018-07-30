@@ -13,7 +13,7 @@ import torch
 import torchnet
 from tqdm import tqdm
 
-from data import WikiSentences
+from data import WikiSequence
 from utils import Index, RandomBatchSampler
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
@@ -76,9 +76,9 @@ try:
   ###############################################################################
   
   index = Index()
-  train_ = WikiSentences(args.data, subset='train', index = index, seqlen = args.bptt).to(device)
-  test_ = WikiSentences(args.data, subset='test', index = index, seqlen = args.bptt).to(device)
-  valid_ = WikiSentences(args.data, subset='valid', index = index, seqlen = args.bptt).to(device)
+  train_ = WikiSequence(args.data, subset='train', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+  test_ = WikiSequence(args.data, subset='test', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+  valid_ = WikiSequence(args.data, subset='valid', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
   index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
   
   # load pre embedding

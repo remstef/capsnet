@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 import torch.onnx
 
-from data import WikiSentences
+from data import WikiSequence
 from utils import Index
 
 from rnn_nets import RNNLM
@@ -66,9 +66,9 @@ device = torch.device("cuda" if args.cuda else "cpu")
 # Load data
 ###############################################################################
 index = Index()
-train_ = WikiSentences(args.data, subset='train', index = index)
-test_ = WikiSentences(args.data, subset='test', index = index)
-valid_ = WikiSentences(args.data, subset='valid', index = index)
+train_ = WikiSequence(args.data, subset='train', index = index, seqlen = args.bptt, skip = args.bptt)
+test_ = WikiSequence(args.data, subset='test', index = index, seqlen = args.bptt, skip = args.bptt)
+valid_ = WikiSequence(args.data, subset='valid', index = index, seqlen = args.bptt, skip = args.bptt)
 index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
 
 

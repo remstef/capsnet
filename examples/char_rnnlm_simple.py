@@ -9,7 +9,7 @@ import sys
 if not '..' in sys.path: sys.path.append('..')
 
 import torch
-from data import CharDataset
+from data import CharSequence
 from rnn_nets import SimpleRNN
 import time
 import random
@@ -32,7 +32,7 @@ And see thy blood warm when thou feel'st it cold.'''
 
 # prepare data
 # create a Tensor of long values representing indices of the chars
-dataset = CharDataset(filename='../data/tinyshakespeare.txt', seqlen=100)
+dataset = CharSequence(filename='../data/tinyshakespeare.txt', seqlen=10, skip=10)
 
 # prepare model
 model = SimpleRNN(ntoken = len(dataset.index), emsize=300, nhid=200, nlayers=1) # ntokens = nchars

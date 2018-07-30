@@ -11,8 +11,9 @@ import math
 import os
 import torch
 
-from data import WikiSentences
+from data import WikiSequence
 from utils import Index, RandomBatchSampler
+from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
 
 from rnn_nets import RNNLM
@@ -46,6 +47,10 @@ parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
 parser.add_argument('--cuda', action='store_true',
                     help='use CUDA')
+parser.add_argument('--shuffle_batches', action='store_true',
+                    help='shuffle batches')
+parser.add_argument('--shuffle_samples', action='store_true',
+                    help='shuffle samples')
 parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
 parser.add_argument('--save', type=str, default='model.pt',
@@ -67,9 +72,9 @@ device = torch.device("cuda" if args.cuda else "cpu")
 ###############################################################################
 
 index = Index()
-train_ = WikiSentences(args.data, subset='train', index = index, seqlen = args.bptt).to(device)
-test_ = WikiSentences(args.data, subset='test', index = index, seqlen = args.bptt).to(device)
-valid_ = WikiSentences(args.data, subset='valid', index = index, seqlen = args.bptt).to(device)
+train_ = WikiSequence(args.data, subset='train', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+test_ = WikiSequence(args.data, subset='test', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+valid_ = WikiSequence(args.data, subset='valid', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
 index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
 
 # load pre embedding
@@ -92,13 +97,13 @@ else:
 
 eval_batch_size = 10
 
-#train_loader = torch.utils.data.DataLoader(train_, batch_size = args.batch_size, shuffle = False, drop_last = True, num_workers = 0)
-#test_loader = torch.utils.data.DataLoader(test_, batch_size = eval_batch_size, shuffle = False, drop_last = True, num_workers = 0)
-#valid_loader = torch.utils.data.DataLoader(valid_, batch_size = eval_batch_size, shuffle = False, drop_last = True, num_workers = 0)
 
-train_loader = torch.utils.data.DataLoader(train_, batch_sampler = RandomBatchSampler(torch.utils.data.sampler.SequentialSampler(train_), batch_size=args.batch_size, drop_last = True), num_workers = 0)
-test_loader = torch.utils.data.DataLoader(test_, batch_sampler = RandomBatchSampler(torch.utils.data.sampler.SequentialSampler(test_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
-valid_loader = torch.utils.data.DataLoader(valid_, batch_sampler = RandomBatchSampler(torch.utils.data.sampler.SequentialSampler(valid_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
+__ItemSampler = RandomSampler if args.shuffle_samples else SequentialSampler
+__BatchSampler = RandomBatchSampler if args.shuffle_batches else BatchSampler
+
+train_loader = torch.utils.data.DataLoader(train_, batch_sampler = __BatchSampler(__ItemSampler(train_), batch_size=args.batch_size, drop_last = True), num_workers = 0)
+test_loader = torch.utils.data.DataLoader(test_, batch_sampler = __BatchSampler(__ItemSampler(test_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
+valid_loader = torch.utils.data.DataLoader(valid_, batch_sampler = __BatchSampler(__ItemSampler(valid_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
 
 ###############################################################################
 # Build the model
