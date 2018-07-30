@@ -9,7 +9,7 @@ import sys
 if not '..' in sys.path: sys.path.append('..')
 
 import torch
-from utils import Index
+from data import CharDataset
 from rnn_nets import SimpleRNN
 import time
 import random
@@ -32,25 +32,17 @@ And see thy blood warm when thou feel'st it cold.'''
 
 # prepare data
 # create a Tensor of long values representing indices of the chars
-sequence = torch.zeros(len(charsequence), dtype=torch.long)#.long()
-index = Index()
-for i, c in enumerate(charsequence):
-  idx = index.add(c)
-  sequence[i] = idx
+dataset = CharDataset(filename='../data/tinyshakespeare.txt', seqlen=100)
 
 # prepare model
-model = SimpleRNN(ntoken = len(index), emsize=300, nhid=200, nlayers=1) # ntokens = nchars
+model = SimpleRNN(ntoken = len(dataset.index), emsize=300, nhid=200, nlayers=1) # ntokens = nchars
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 criterion = torch.nn.CrossEntropyLoss()
 
 # train
-
-def generate_random_subsequence(seqlen):
-  begin_offset = random.randint(0, len(sequence)-seqlen-1)
-  end_offset = begin_offset + seqlen
-  inputs = sequence[begin_offset:end_offset]
-  targets = sequence[begin_offset+1:end_offset+1]
-  return inputs, targets
+def get_random_sample():
+  index = random.randint(0, len(dataset))
+  return dataset[index]
 
 def process(inputs, targets):
   hidden = model.init_hidden()
@@ -65,12 +57,12 @@ def process(inputs, targets):
   loss.backward()
   optimizer.step()
   
-  return loss.data[0] / len(inputs)
+  return loss.data.item() / len(inputs)
 
 def generate(prime='A', predict_len=100, temperature=0.8):
   prime = list(prime)
   hidden = model.init_hidden()
-  prime_input = torch.LongTensor(list(index[prime]))
+  prime_input = torch.LongTensor(list(dataset.index[prime]))
   predicted = prime
 
   # Use priming string to "build up" hidden state
@@ -87,25 +79,24 @@ def generate(prime='A', predict_len=100, temperature=0.8):
     top_i = torch.multinomial(output_dist, 1)[0]
     
     # Add predicted character to string and use as next input
-    predicted_char = index[top_i.item()]
+    predicted_char = dataset.index[top_i.item()]
     predicted += predicted_char
     inp = torch.LongTensor([top_i])
   return ''.join(predicted)
-
 
 start_time = time.time()
 all_losses = []
 loss_avg = 0
 epochs = 2000
-seqlen = 10
 
 print("Training for %d epochs..." % epochs)
 for epoch in range(epochs):
-  inputs, targets = generate_random_subsequence(10)
+  inputs, targets = get_random_sample()
 
   loss = process(inputs, targets)
   loss_avg += loss
 
-  if epoch % 10 == 0:
+  if epoch % 200 == 0:
     print('[%s (%d %d%%) %.4f]' % (time.time() - start_time, epoch, epoch / epochs * 100, loss))
+  if epoch % 400 == 0:    
     print(generate(prime='Wh', predict_len=20), '\n')

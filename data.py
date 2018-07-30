@@ -44,13 +44,15 @@ class CharDataset(torch.utils.data.Dataset):
     self.index = Index()
     self.load()
     self.seqlen = seqlen
+    self.nsequences = (len(self.sequence) // (seqlen - 1)) - 1
     
   def __len__(self):
-    return len(self.sequence) - self.seqlen - 1
+    return self.nsequences
 
   def __getitem__(self, index):
-    x = self.sequence[index:index+self.seqlen]
-    y = self.sequence[index+1:index+self.seqlen+1]
+    skip_index = index * (self.seqlen-1) # make sure each sequence is only read once
+    x = self.sequence[skip_index     : skip_index + self.seqlen    ]
+    y = self.sequence[skip_index + 1 : skip_index + self.seqlen + 1]
     return x, y 
   
   def cuda(self):
