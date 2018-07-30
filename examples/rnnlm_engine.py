@@ -15,6 +15,7 @@ from tqdm import tqdm
 
 from data import WikiSentences
 from utils import Index, RandomBatchSampler
+from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
 
 from rnn_nets import RNNLM
@@ -52,6 +53,10 @@ try:
                       help='random seed')
   parser.add_argument('--cuda', action='store_true',
                       help='use CUDA')
+  parser.add_argument('--shuffle_batches', action='store_true',
+                      help='shuffle batches')
+  parser.add_argument('--shuffle_samples', action='store_true',
+                      help='shuffle samples')
   parser.add_argument('--save', type=str, default='model.pt',
                       help='path to save the final model')
   parser.add_argument('--init_weights', type=str, default='',
@@ -96,14 +101,12 @@ try:
   
   eval_batch_size = 10
   
-#  train_loader = torch.utils.data.DataLoader(train_, batch_sampler = RandomBatchSampler(torch.utils.data.sampler.SequentialSampler(train_), batch_size=args.batch_size, drop_last = True), num_workers = 0)
-#  test_loader = torch.utils.data.DataLoader(test_, batch_sampler = RandomBatchSampler(torch.utils.data.sampler.SequentialSampler(test_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
-#  valid_loader = torch.utils.data.DataLoader(valid_, batch_sampler = RandomBatchSampler(torch.utils.data.sampler.SequentialSampler(valid_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
+  __ItemSampler = RandomSampler if args.shuffle_samples else SequentialSampler
+  __BatchSampler = RandomBatchSampler if args.shuffle_batches else BatchSampler
   
-  train_loader = torch.utils.data.DataLoader(train_, batch_sampler = torch.utils.data.sampler.BatchSampler(torch.utils.data.sampler.SequentialSampler(train_), batch_size=args.batch_size, drop_last = True), num_workers = 0)
-  test_loader = torch.utils.data.DataLoader(test_, batch_sampler = torch.utils.data.sampler.BatchSampler(torch.utils.data.sampler.SequentialSampler(test_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
-  valid_loader = torch.utils.data.DataLoader(valid_, batch_sampler = torch.utils.data.sampler.BatchSampler(torch.utils.data.sampler.SequentialSampler(valid_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
-
+  train_loader = torch.utils.data.DataLoader(train_, batch_sampler = __BatchSampler(__ItemSampler(train_), batch_size=args.batch_size, drop_last = True), num_workers = 0)
+  test_loader = torch.utils.data.DataLoader(test_, batch_sampler = __BatchSampler(__ItemSampler(test_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
+  valid_loader = torch.utils.data.DataLoader(valid_, batch_sampler = __BatchSampler(__ItemSampler(valid_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
   
   ###############################################################################
   # Build the model
@@ -141,7 +144,7 @@ try:
     # reshape x and y batches so seqlen is dim 0 and batch is dim 1
     x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
     y_batch = y_batch.transpose(0,1)
-  
+    
     hidden = repackage_hidden(hidden)    
     if is_training:
       model.zero_grad()
