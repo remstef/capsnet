@@ -96,9 +96,14 @@ try:
   
   eval_batch_size = 10
   
-  train_loader = torch.utils.data.DataLoader(train_, batch_sampler = RandomBatchSampler(torch.utils.data.sampler.SequentialSampler(train_), batch_size=args.batch_size, drop_last = True), num_workers = 0)
-  test_loader = torch.utils.data.DataLoader(test_, batch_sampler = RandomBatchSampler(torch.utils.data.sampler.SequentialSampler(test_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
-  valid_loader = torch.utils.data.DataLoader(valid_, batch_sampler = RandomBatchSampler(torch.utils.data.sampler.SequentialSampler(valid_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
+#  train_loader = torch.utils.data.DataLoader(train_, batch_sampler = RandomBatchSampler(torch.utils.data.sampler.SequentialSampler(train_), batch_size=args.batch_size, drop_last = True), num_workers = 0)
+#  test_loader = torch.utils.data.DataLoader(test_, batch_sampler = RandomBatchSampler(torch.utils.data.sampler.SequentialSampler(test_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
+#  valid_loader = torch.utils.data.DataLoader(valid_, batch_sampler = RandomBatchSampler(torch.utils.data.sampler.SequentialSampler(valid_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
+  
+  train_loader = torch.utils.data.DataLoader(train_, batch_sampler = torch.utils.data.sampler.BatchSampler(torch.utils.data.sampler.SequentialSampler(train_), batch_size=args.batch_size, drop_last = True), num_workers = 0)
+  test_loader = torch.utils.data.DataLoader(test_, batch_sampler = torch.utils.data.sampler.BatchSampler(torch.utils.data.sampler.SequentialSampler(test_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
+  valid_loader = torch.utils.data.DataLoader(valid_, batch_sampler = torch.utils.data.sampler.BatchSampler(torch.utils.data.sampler.SequentialSampler(valid_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
+
   
   ###############################################################################
   # Build the model
