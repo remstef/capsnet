@@ -109,8 +109,9 @@ test_data = batchify(test_.data, eval_batch_size)
 
 ntokens = len(index)
 model = RNNLM(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
-
+print(model)
 criterion = nn.CrossEntropyLoss()
+print(criterion)
 
 ###############################################################################
 # Training code

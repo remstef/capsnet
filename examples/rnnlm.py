@@ -106,6 +106,8 @@ eval_batch_size = args.batch_size
 
 __ItemSampler = RandomSampler if args.shuffle_samples else SequentialSampler
 __BatchSampler = RandomBatchSampler if args.shuffle_batches else BatchSampler
+print(__ItemSampler)
+print(__BatchSampler)
 
 train_loader = torch.utils.data.DataLoader(train_, batch_sampler = __BatchSampler(__ItemSampler(train_), batch_size=args.batch_size, drop_last = True), num_workers = 0)
 test_loader = torch.utils.data.DataLoader(test_, batch_sampler = __BatchSampler(__ItemSampler(test_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
@@ -125,9 +127,9 @@ model = RNNLM(
     tie_weights = args.tied, 
     init_em_weights = preemb_weights, 
     train_em_weights = True).to(device)
-
+print(model)
 criterion = torch.nn.CrossEntropyLoss()
-
+print(criterion)
 ###############################################################################
 # Training code
 ###############################################################################
