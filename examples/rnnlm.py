@@ -174,9 +174,9 @@ def evaluate(d_loader):
             print('===i===\n', batch)
             print('===len(data)===\n', len(data))
             print('===loss===\n', loss_)
-            print('===toal loss===', total_loss)            
-    print('===toal loss===\n', total_loss)
-    print('===len(d_loader)===\n',total_loss)
+            print('===total loss===\n', total_loss)            
+    print('===total loss===\n', total_loss)
+    print('===len(d_loader)===\n',len(d_loader))
     print('===args.bptt===\n',args.bptt)
     return total_loss / (len(d_loader) * args.bptt )
 

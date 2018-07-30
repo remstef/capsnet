@@ -159,8 +159,8 @@ def evaluate(data_source):
             print('===batch_idx===\n', i)
             print('===len(data)===\n', len(data))
             print('===loss===\n', loss_)
-            print('===toal loss===', total_loss)
-    print('===toal loss===\n', total_loss)
+            print('===total loss===\n', total_loss)
+    print('===total loss===\n', total_loss)
     print('===len(data_source)===\n',len(data_source))
     return total_loss / len(data_source)
 
