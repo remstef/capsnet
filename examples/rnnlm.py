@@ -11,7 +11,7 @@ import math
 import os
 import torch
 
-from data import WikiSequence
+from data import WikiSequence, CharSequence
 from utils import Index, RandomBatchSampler
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
@@ -71,11 +71,17 @@ device = torch.device("cuda" if args.cuda else "cpu")
 # Load data
 ###############################################################################
 
-index = Index()
-train_ = WikiSequence(args.data, subset='train', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
-test_ = WikiSequence(args.data, subset='test', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
-valid_ = WikiSequence(args.data, subset='valid', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
-index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
+#index = Index()
+#train_ = WikiSequence(args.data, subset='train', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+#test_ = WikiSequence(args.data, subset='test', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+#valid_ = WikiSequence(args.data, subset='valid', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+#index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
+
+train_ = CharSequence(filename='../data/tinyshakespeare.txt', seqlen=args.bptt, skip=args.bptt).to(device)
+test_ = CharSequence(filename='../data/tinyshakespeare.txt', seqlen=args.bptt, skip=args.bptt).to(device)
+valid_ = CharSequence(filename='../data/tinyshakespeare.txt', seqlen=args.bptt, skip=args.bptt).to(device)
+index = train_.index
+
 
 # load pre embedding
 if args.init_weights:
