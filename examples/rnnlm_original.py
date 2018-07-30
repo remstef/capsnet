@@ -156,17 +156,17 @@ def evaluate(data_source):
             current_loss = len(data) * loss_
             total_loss += current_loss
             hidden = repackage_hidden(hidden)
-            print('===i===\n', j)
-            print('===batch_idx===\n', i)
-            print('===len(data)===\n', len(data))
-            print('===loss===\n', loss_)
-            print('===loss * len(data)loss===\n', current_loss)
-            print('===total loss===\n', total_loss)
-            if j >= 10:
-              break
-    print('===total loss===\n', total_loss)
-    print('===len(data_source)===\n',len(data_source))
-    print('===total_loss / len(data_source)===\n',total_loss / len(data_source))
+#            print('===i===\n', j)
+#            print('===batch_idx===\n', i)
+#            print('===len(data)===\n', len(data))
+#            print('===loss===\n', loss_)
+#            print('===loss * len(data)loss===\n', current_loss)
+#            print('===total loss===\n', total_loss)
+#            if j >= 10:
+#              break
+#    print('===total loss===\n', total_loss)
+#    print('===len(data_source)===\n',len(data_source))
+#    print('===total_loss / len(data_source)===\n',total_loss / len(data_source))
     return total_loss / len(data_source)
 
 

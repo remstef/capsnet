@@ -172,18 +172,18 @@ def evaluate(d_loader):
             current_loss = len(data) * loss_
             total_loss += current_loss
             hidden = repackage_hidden(hidden)
-            print('===i===\n', batch)
-            print('===len(data)===\n', len(data))
-            print('===loss===\n', loss_)
-            print('===len(data) * loss_===\n', current_loss)
-            print('===total loss===\n', total_loss)   
-            if batch >= 10:
-              break
-    print('===total loss===\n', total_loss)
-    print('===len(d_loader)===\n',len(d_loader))
-    print('===args.bptt===\n',args.bptt)    
-    print('===len(d_loader) * args.bptt===\n', len(d_loader) * args.bptt)
-    print('===final loss===\n', total_loss / (len(d_loader) * args.bptt ))
+#            print('===i===\n', batch)
+#            print('===len(data)===\n', len(data))
+#            print('===loss===\n', loss_)
+#            print('===len(data) * loss_===\n', current_loss)
+#            print('===total loss===\n', total_loss)   
+#            if batch >= 10:
+#              break
+#    print('===total loss===\n', total_loss)
+#    print('===len(d_loader)===\n',len(d_loader))
+#    print('===args.bptt===\n',args.bptt)    
+#    print('===len(d_loader) * args.bptt===\n', len(d_loader) * args.bptt)
+#    print('===final loss===\n', total_loss / (len(d_loader) * args.bptt ))
     return total_loss / (len(d_loader) * args.bptt )
 
 
