@@ -168,12 +168,14 @@ def evaluate(d_loader):
             data, targets = reshape_batch(batch_data)
             output, hidden = model(data, hidden)
             output_flat = output.view(-1, ntokens)
-            loss_ = criterion(output_flat, targets)
-            total_loss += len(data) * loss_.item()
+            loss_ = criterion(output_flat, targets).item()
+            current_loss = len(data) * loss_
+            total_loss += current_loss
             hidden = repackage_hidden(hidden)
             print('===i===\n', batch)
             print('===len(data)===\n', len(data))
             print('===loss===\n', loss_)
+            print('===len(data) * loss_===\n', current_loss)
             print('===total loss===\n', total_loss)            
     print('===total loss===\n', total_loss)
     print('===len(d_loader)===\n',len(d_loader))
