@@ -1,25 +1,25 @@
 # -*- coding: utf-8 -*-
 
-import torch.nn as nn
+import torch
 
-class RNNModel(nn.Module):
+class RNNModel(torch.nn.Module):
   """Container module with an encoder, a recurrent module, and a decoder."""
   '''https://discuss.pytorch.org/t/lstm-to-bi-lstm/12967'''
 
   def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False, init_em_weights=None, train_em_weights=True):
     super(RNNModel, self).__init__()
-    self.drop = nn.Dropout(dropout)
-    self.encoder = nn.Embedding(ntoken, ninp)
+    self.drop = torch.nn.Dropout(dropout)
+    self.encoder = torch.nn.Embedding(ntoken, ninp)
     if rnn_type in ['LSTM', 'GRU']:
-      self.rnn = getattr(nn, rnn_type)(ninp, nhid, nlayers, dropout=dropout)
+      self.rnn = getattr(torch.nn, rnn_type)(ninp, nhid, nlayers, dropout=dropout)
     else:
       try:
         nonlinearity = {'RNN_TANH': 'tanh', 'RNN_RELU': 'relu'}[rnn_type]
       except KeyError:
         raise ValueError( '''An invalid option `%s` for 'rnntype' was supplied,
                            options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']''' % rnn_type)
-      self.rnn = nn.RNN(ninp, nhid, nlayers, nonlinearity=nonlinearity, dropout=dropout)
-    self.decoder = nn.Linear(nhid, ntoken)
+      self.rnn = torch.nn.RNN(ninp, nhid, nlayers, nonlinearity=nonlinearity, dropout=dropout)
+    self.decoder = torch.nn.Linear(nhid, ntoken)
 
     self.init_weights(init_em_weights, train_em_weights)
     # Optionally tie weights as in:
@@ -63,3 +63,23 @@ class RNNModel(nn.Module):
               weight.new_zeros(self.nlayers, bsz, self.nhid))
     else:
       return weight.new_zeros(self.nlayers, bsz, self.nhid)
+
+class SimpleRNN(torch.nn.Module):
+  def __init__(self, ntoken, emsize, nhid, nlayers=1):
+    super(SimpleRNN, self).__init__()
+    self.ntoken = ntoken
+    self.emsize = emsize
+    self.nlayers = nlayers
+
+    self.encoder = torch.nn.Embedding(ntoken, emsize)
+    self.gru = torch.nn.GRU(emsize, nhid, nlayers)
+    self.decoder = torch.nn.Linear(nhid, ntoken)
+
+  def forward(self, input, hidden):
+    input = self.encoder(input.view(1, -1))
+    output, hidden = self.gru(input.view(1, 1, -1), hidden)
+    output = self.decoder(output.view(1, -1))
+    return output, hidden
+
+  def init_hidden(self):
+    return torch.autograd.Variable(torch.zeros(self.nlayers, 1, self.nhid))
