@@ -176,7 +176,9 @@ def evaluate(d_loader):
             print('===len(data)===\n', len(data))
             print('===loss===\n', loss_)
             print('===len(data) * loss_===\n', current_loss)
-            print('===total loss===\n', total_loss)            
+            print('===total loss===\n', total_loss)   
+            if batch >= 10:
+              break
     print('===total loss===\n', total_loss)
     print('===len(d_loader)===\n',len(d_loader))
     print('===args.bptt===\n',args.bptt)    

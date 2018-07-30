@@ -162,6 +162,8 @@ def evaluate(data_source):
             print('===loss===\n', loss_)
             print('===loss * len(data)loss===\n', current_loss)
             print('===total loss===\n', total_loss)
+            if j >= 10:
+              break
     print('===total loss===\n', total_loss)
     print('===len(data_source)===\n',len(data_source))
     print('===total_loss / len(data_source)===\n',total_loss / len(data_source))
