@@ -97,7 +97,7 @@ def batchify(data, bsz):
     data = data.view(bsz, -1).t().contiguous()
     return data.to(device)
 
-eval_batch_size = 10
+eval_batch_size = args.batch_size
 train_data = batchify(train_.data, args.batch_size)
 val_data = batchify(valid_.data, eval_batch_size)
 test_data = batchify(test_.data, eval_batch_size)

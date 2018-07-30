@@ -101,7 +101,7 @@ if args.init_weights:
 else:
   preemb_weights = None
 
-eval_batch_size = 10
+eval_batch_size = args.batch_size
 
 
 __ItemSampler = RandomSampler if args.shuffle_samples else SequentialSampler
