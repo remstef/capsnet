@@ -143,7 +143,7 @@ def reshape_batch(batch_data):
     # dimensions: batch x seqlen
     x_batch, y_batch = batch_data
     # reshape x_batch so seqlen is dim 0 and batch is dim 1
-    x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
+    x_batch = x_batch.transpose(0,1).contiguous() # switch dim 0 with dim 1
     # reshape y_batch so we get a 1d tensor of length seqlen x batch that matches with x_batch
     y_batch = y_batch.transpose(0,1).contiguous().view(-1) # switch dim 0 with dim 1 and view as 1d    
       #####
@@ -179,7 +179,9 @@ def evaluate(d_loader):
             print('===total loss===\n', total_loss)            
     print('===total loss===\n', total_loss)
     print('===len(d_loader)===\n',len(d_loader))
-    print('===args.bptt===\n',args.bptt)
+    print('===args.bptt===\n',args.bptt)    
+    print('===len(d_loader) * args.bptt===\n', len(d_loader) * args.bptt)
+    print('===final loss===\n', total_loss / (len(d_loader) * args.bptt ))
     return total_loss / (len(d_loader) * args.bptt )
 
 
