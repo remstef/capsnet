@@ -15,7 +15,7 @@ import torch.onnx
 from data import WikiSentences
 from utils import Index
 
-import rnnlm_net as model
+from rnn_nets import RNNLM
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='../data/wikisentences',
@@ -105,7 +105,7 @@ test_data = batchify(test_.data, eval_batch_size)
 ###############################################################################
 
 ntokens = len(index)
-model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
+model = RNNLM(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 
 criterion = nn.CrossEntropyLoss()
 

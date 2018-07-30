@@ -2,12 +2,12 @@
 
 import torch
 
-class RNNModel(torch.nn.Module):
+class RNNLM(torch.nn.Module):
   """Container module with an encoder, a recurrent module, and a decoder."""
   '''https://discuss.pytorch.org/t/lstm-to-bi-lstm/12967'''
 
   def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False, init_em_weights=None, train_em_weights=True):
-    super(RNNModel, self).__init__()
+    super(RNNLM, self).__init__()
     self.drop = torch.nn.Dropout(dropout)
     self.encoder = torch.nn.Embedding(ntoken, ninp)
     if rnn_type in ['LSTM', 'GRU']:
@@ -64,11 +64,15 @@ class RNNModel(torch.nn.Module):
     else:
       return weight.new_zeros(self.nlayers, bsz, self.nhid)
 
+'''
+
+'''
 class SimpleRNN(torch.nn.Module):
   def __init__(self, ntoken, emsize, nhid, nlayers=1):
     super(SimpleRNN, self).__init__()
     self.ntoken = ntoken
     self.emsize = emsize
+    self.nhid = nhid
     self.nlayers = nlayers
 
     self.encoder = torch.nn.Embedding(ntoken, emsize)

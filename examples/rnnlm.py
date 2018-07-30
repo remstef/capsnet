@@ -15,7 +15,7 @@ from data import WikiSentences
 from utils import Index, RandomBatchSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
 
-import rnnlm_net as model
+from rnn_nets import RNNLM
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='../data/wikisentences',
@@ -104,7 +104,7 @@ valid_loader = torch.utils.data.DataLoader(valid_, batch_sampler = RandomBatchSa
 # Build the model
 ###############################################################################
 ntokens = len(index)
-model = model.RNNModel(
+model = RNNLM(
     rnn_type = args.model, 
     ntoken = ntokens, 
     ninp = args.emsize, 

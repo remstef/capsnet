@@ -17,7 +17,7 @@ from data import WikiSentences
 from utils import Index, RandomBatchSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
 
-import rnnlm_net as model
+from rnn_nets import RNNLM
 
 try:
 
@@ -104,7 +104,7 @@ try:
   # Build the model
   ###############################################################################
   ntokens = len(index)
-  model = model.RNNModel(
+  model = RNNLM(
       rnn_type = args.model, 
       ntoken = ntokens, 
       ninp = args.emsize, 
