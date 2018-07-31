@@ -76,7 +76,6 @@ try:
   ###############################################################################
   # Load data
   ###############################################################################
-  
   __SequenceDataset = CharSequence if args.chars else TokenSequence
   print(__SequenceDataset.__name__)
   index = Index(initwords = ['<unk>'], unkindex = 0)

@@ -155,7 +155,7 @@ def evaluate(data_source):
             loss_ = criterion(output_flat, targets).item()
             current_loss = len(data) * loss_
             total_loss += current_loss
-#            hidden = repackage_hidden(hidden)
+            hidden = repackage_hidden(hidden)
 #            print('===i===\n', j)
 #            print('===batch_idx===\n', i)
 #            print('===len(data)===\n', len(data))
