@@ -12,7 +12,7 @@ import os
 import torch
 
 from data import TokenSequence, CharSequence
-from utils import Index, RandomBatchSampler
+from utils import Index, RandomBatchSampler, EvenlyDistributingSampler
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
 
@@ -59,6 +59,8 @@ parser.add_argument('--init_weights', type=str, default='',
                     help='path to initial embedding. emsize must match size of embedding')
 parser.add_argument('--chars', action='store_true',
                     help='use character sequences instead of token sequences')
+parser.add_argument('--sequential_sampling', action='store_true',
+                    help='use samples and batches sequentially.')
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
@@ -100,9 +102,9 @@ else:
 
 eval_batch_size = args.batch_size
 
-
 __ItemSampler = RandomSampler if args.shuffle_samples else SequentialSampler
-__BatchSampler = RandomBatchSampler if args.shuffle_batches else BatchSampler
+__BatchSampler = RandomBatchSampler if args.shuffle_batches else EvenlyDistributingSampler
+__BatchSampler = BatchSampler if args.sequential_sampling else __BatchSampler
 print(__ItemSampler.__name__)
 print(__BatchSampler.__name__)
 
