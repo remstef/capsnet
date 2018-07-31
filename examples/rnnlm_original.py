@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 import torch.onnx
 
-from data import WikiSequence, CharSequence
+from data import TokenSequence, CharSequence
 from utils import Index
 
 from rnn_nets import RNNLM
@@ -52,6 +52,8 @@ parser.add_argument('--save', type=str, default='model.pt',
                     help='path to save the final model')
 parser.add_argument('--onnx-export', type=str, default='',
                     help='path to export the final model in onnx format')
+parser.add_argument('--chars', action='store_true',
+                    help='use character sequences instead of token sequences')
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
@@ -65,16 +67,13 @@ device = torch.device("cuda" if args.cuda else "cpu")
 ###############################################################################
 # Load data
 ###############################################################################
-#index = Index()
-#train_ = WikiSequence(args.data, subset='train', index = index, seqlen = args.bptt, skip = args.bptt)
-#test_ = WikiSequence(args.data, subset='test', index = index, seqlen = args.bptt, skip = args.bptt)
-#valid_ = WikiSequence(args.data, subset='valid', index = index, seqlen = args.bptt, skip = args.bptt)
-#index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
-
-train_ = CharSequence(filename='../data/tinyshakespeare.txt', seqlen=args.bptt, skip=args.bptt).to(device)
-test_ = CharSequence(filename='../data/tinyshakespeare.txt', seqlen=args.bptt, skip=args.bptt).to(device)
-valid_ = CharSequence(filename='../data/tinyshakespeare.txt', seqlen=args.bptt, skip=args.bptt).to(device)
-index = train_.index
+__SequenceDataset = CharSequence if args.chars else TokenSequence
+print(__SequenceDataset.__name__)
+index = Index(initwords = ['<unk>'], unkindex = 0)
+train_ = __SequenceDataset(args.data, subset='train.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+index.freeze(silent = True).tofile(os.path.join(args.data, 'vocab_chars.txt' if args.chars else 'vocab_tokens.txt'))
+test_ = __SequenceDataset(args.data, subset='test.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+valid_ = __SequenceDataset(args.data, subset='valid.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
 
 # Starting from sequential data, batchify arranges the dataset into columns.
 # For instance, with the alphabet as the sequence and batch size 4, we'd get
@@ -156,7 +155,7 @@ def evaluate(data_source):
             loss_ = criterion(output_flat, targets).item()
             current_loss = len(data) * loss_
             total_loss += current_loss
-            hidden = repackage_hidden(hidden)
+#            hidden = repackage_hidden(hidden)
 #            print('===i===\n', j)
 #            print('===batch_idx===\n', i)
 #            print('===len(data)===\n', len(data))

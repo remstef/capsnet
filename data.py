@@ -85,7 +85,7 @@ class SequenceDataset(torch.utils.data.Dataset):
   def to(self, device):
     self.data = self.data.to(device)
     return self
-
+  
 
 class CharSequence(SequenceDataset):
   
@@ -98,21 +98,19 @@ class CharSequence(SequenceDataset):
     del charsequence
     return sequence
     
-  def __init__(self, filename, seqlen = 35, skip = 35):
+  def __init__(self, path, subset = 'train.txt', index = None, seqlen = 35, skip = 35):
     super(CharSequence, self).__init__(seqlen, skip)
-    self.file = filename
-    self.index = Index()
+    self.path = path
+    self.subset = subset
+    self.file = os.path.join(self.path, self.subset)
+    self.index = index if index is not None else Index()
     self.data = self.load()
     
   
 '''
- words as a sequence in a single 1d tensor
+ tokens as a sequence in a single 1d tensor
 '''
-class WikiSequence(SequenceDataset):
-    
-  def tokenize(self, line, data):
-    for w in line.split() + ['<eos>']:
-      data.append(self.index.add(w))
+class TokenSequence(SequenceDataset):
   
   def load(self):
     print('Loading %s sentences from %s' % (self.subset, self.file), file=sys.stderr)    
@@ -120,16 +118,17 @@ class WikiSequence(SequenceDataset):
     data_ = []
     with open(self.file, 'r', encoding='utf8') as f:
       for i, line in enumerate(f):
-        self.tokenize(line, data_)
+        for w in line.split() + ['<eos>']:
+          data_.append(self.index.add(w))
     data = torch.LongTensor(data_)
     del data_
     return data
     
-  def __init__(self, path, subset = 'train', index = None, seqlen = 35, skip = 35):
-    super(WikiSequence, self).__init__(seqlen, skip)
+  def __init__(self, path, subset = 'train.txt', index = None, seqlen = 35, skip = 35):
+    super(TokenSequence, self).__init__(seqlen, skip)
     self.path = path
     self.subset = subset
-    self.file = os.path.join(self.path, self.subset + '.txt')
+    self.file = os.path.join(self.path, self.subset)
     self.index = index if index is not None else Index()
     self.data = self.load()
 

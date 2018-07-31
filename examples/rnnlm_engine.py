@@ -13,7 +13,7 @@ import torch
 import torchnet
 from tqdm import tqdm
 
-from data import WikiSequence
+from data import CharSequence, TokenSequence
 from utils import Index, RandomBatchSampler
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
@@ -61,6 +61,8 @@ try:
                       help='path to save the final model')
   parser.add_argument('--init_weights', type=str, default='',
                       help='path to initial embedding. emsize must match size of embedding')
+  parser.add_argument('--chars', action='store_true',
+                      help='use character sequences instead of token sequences')
   args = parser.parse_args()
   
   # Set the random seed manually for reproducibility.
@@ -75,12 +77,14 @@ try:
   # Load data
   ###############################################################################
   
-  index = Index()
-  train_ = WikiSequence(args.data, subset='train', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
-  test_ = WikiSequence(args.data, subset='test', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
-  valid_ = WikiSequence(args.data, subset='valid', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
-  index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
-  
+  __SequenceDataset = CharSequence if args.chars else TokenSequence
+  print(__SequenceDataset.__name__)
+  index = Index(initwords = ['<unk>'], unkindex = 0)
+  train_ = __SequenceDataset(args.data, subset='train.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+  index.freeze(silent = True).tofile(os.path.join(args.data, 'vocab_chars.txt' if args.chars else 'vocab_tokens.txt'))
+  test_ = __SequenceDataset(args.data, subset='test.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+  valid_ = __SequenceDataset(args.data, subset='valid.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+
   # load pre embedding
   if args.init_weights:
     # determine type of embedding by checking it's suffix

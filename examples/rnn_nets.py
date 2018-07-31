@@ -37,32 +37,33 @@ class RNNLM(torch.nn.Module):
     self.nhid = nhid
     self.nlayers = nlayers
 
-  def init_weights(self, weights = None, trainable = True):
+  def init_weights(self, w = None, trainable = True):
     initrange = 0.1
-    if weights is None:
+    if w is None:
       self.encoder.weight.data.uniform_(-initrange, initrange)
     else:
-      assert weights.size() == self.encoder.weight.size()
-      self.encoder.load_state_dict({'weight': weights})
+      assert w.size() == self.encoder.weight.size()
+      self.encoder.load_state_dict({'weight': w})
       if not trainable:
         self.encoder.weight.requires_grad = False
     self.decoder.bias.data.zero_()
     self.decoder.weight.data.uniform_(-initrange, initrange)
 
-  def forward(self, input, hidden):
-    emb = self.drop(self.encoder(input))
-    output, hidden = self.rnn(emb, hidden)
-    output = self.drop(output)
-    decoded = self.decoder(output.view(output.size(0)*output.size(1), output.size(2)))
-    return decoded.view(output.size(0), output.size(1), decoded.size(1)), hidden
+  def forward(self, inputs, hidden):
+    e = self.drop(self.encoder(inputs))
+    o, h = self.rnn(e, hidden)
+    o = self.drop(o)
+    d = self.decoder(o.view(o.size(0)*o.size(1), o.size(2)))
+    d = d.view(o.size(0), o.size(1), d.size(1))
+    return d, h
 
   def init_hidden(self, bsz):
-    weight = next(self.parameters())
+    w = next(self.parameters())
     if self.rnn_type == 'LSTM':
-      return (weight.new_zeros(self.nlayers, bsz, self.nhid),
-              weight.new_zeros(self.nlayers, bsz, self.nhid))
+      return (w.new_zeros(self.nlayers, bsz, self.nhid),
+              w.new_zeros(self.nlayers, bsz, self.nhid))
     else:
-      return weight.new_zeros(self.nlayers, bsz, self.nhid)
+      return w.new_zeros(self.nlayers, bsz, self.nhid)
 
 '''
 
@@ -79,11 +80,11 @@ class SimpleRNN(torch.nn.Module):
     self.gru = torch.nn.GRU(emsize, nhid, nlayers)
     self.decoder = torch.nn.Linear(nhid, ntoken)
 
-  def forward(self, input, hidden):
-    input = self.encoder(input.view(1, -1))
-    output, hidden = self.gru(input.view(1, 1, -1), hidden)
-    output = self.decoder(output.view(1, -1))
-    return output, hidden
+  def forward(self, inputs, hidden):
+    e = self.encoder(inputs.view(1, -1))
+    o, h = self.gru(e.view(1, 1, -1), hidden)
+    o = self.decoder(o.view(1, -1))
+    return o, h
 
   def init_hidden(self):
     return torch.autograd.Variable(torch.zeros(self.nlayers, 1, self.nhid))

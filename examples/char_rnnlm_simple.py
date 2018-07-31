@@ -32,7 +32,7 @@ And see thy blood warm when thou feel'st it cold.'''
 
 # prepare data
 # create a Tensor of long values representing indices of the chars
-dataset = CharSequence(filename='../data/tinyshakespeare.txt', seqlen=10, skip=10)
+dataset = CharSequence(path='../data/tinyshakespeare', seqlen=10, skip=10)
 
 # prepare model
 model = SimpleRNN(ntoken = len(dataset.index), emsize=300, nhid=200, nlayers=1) # ntokens = nchars

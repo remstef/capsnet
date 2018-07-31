@@ -11,16 +11,23 @@ import torch.utils.data
 
 class Index(object):
   
-  def __init__(self):
+  def __init__(self, initwords = [], unkindex = None):
     self.id2w = []
     self.w2id = {}
     self.frozen = False
+    self.unkindex = unkindex
+    if initwords is not None:
+      for w in initwords:
+        self.add(w)
 
   def add(self, word):
     if word in self.w2id:
       return self.w2id[word]
     if self.frozen:
-      raise ValueError('Index can not be altered anymore. It is already frozen.')
+      if not self.silentlyfrozen:
+        raise ValueError('Index can not be altered anymore. It is already frozen.')
+      else:
+        return self.unkindex
     idx = len(self.id2w)
     self.w2id[word] = idx
     self.id2w.append(word)
@@ -39,15 +46,19 @@ class Index(object):
     return self.id2w[index]
     
   def getId(self, word):
-    return self.w2id[word]
+    try:
+      return self.w2id[word]
+    except KeyError:
+      return self.unkindex
   
   def tofile(self, fname):
     with open(fname, 'w') as f:
       lines = map(lambda w: w + '\n', self.id2w)
       f.writelines(lines)
       
-  def freeze(self):
+  def freeze(self, silent = False):
     self.frozen = True
+    self.silentlyfrozen = silent
     return self
   
   def vocabulary(self):

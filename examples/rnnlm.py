@@ -11,7 +11,7 @@ import math
 import os
 import torch
 
-from data import WikiSequence, CharSequence
+from data import TokenSequence, CharSequence
 from utils import Index, RandomBatchSampler
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
@@ -57,6 +57,8 @@ parser.add_argument('--save', type=str, default='model.pt',
                     help='path to save the final model')
 parser.add_argument('--init_weights', type=str, default='',
                     help='path to initial embedding. emsize must match size of embedding')
+parser.add_argument('--chars', action='store_true',
+                    help='use character sequences instead of token sequences')
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
@@ -70,18 +72,13 @@ device = torch.device("cuda" if args.cuda else "cpu")
 ###############################################################################
 # Load data
 ###############################################################################
-
-#index = Index()
-#train_ = WikiSequence(args.data, subset='train', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
-#test_ = WikiSequence(args.data, subset='test', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
-#valid_ = WikiSequence(args.data, subset='valid', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
-#index.freeze().tofile(os.path.join(args.data, 'vocab.txt'))
-
-train_ = CharSequence(filename='../data/tinyshakespeare.txt', seqlen=args.bptt, skip=args.bptt).to(device)
-test_ = CharSequence(filename='../data/tinyshakespeare.txt', seqlen=args.bptt, skip=args.bptt).to(device)
-valid_ = CharSequence(filename='../data/tinyshakespeare.txt', seqlen=args.bptt, skip=args.bptt).to(device)
-index = train_.index
-
+__SequenceDataset = CharSequence if args.chars else TokenSequence
+print(__SequenceDataset.__name__)
+index = Index(initwords = ['<unk>'], unkindex = 0)
+train_ = __SequenceDataset(args.data, subset='train.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+index.freeze(silent = True).tofile(os.path.join(args.data, 'vocab_chars.txt' if args.chars else 'vocab_tokens.txt'))
+test_ = __SequenceDataset(args.data, subset='test.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+valid_ = __SequenceDataset(args.data, subset='valid.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
 
 # load pre embedding
 if args.init_weights:
@@ -106,8 +103,8 @@ eval_batch_size = args.batch_size
 
 __ItemSampler = RandomSampler if args.shuffle_samples else SequentialSampler
 __BatchSampler = RandomBatchSampler if args.shuffle_batches else BatchSampler
-print(__ItemSampler)
-print(__BatchSampler)
+print(__ItemSampler.__name__)
+print(__BatchSampler.__name__)
 
 train_loader = torch.utils.data.DataLoader(train_, batch_sampler = __BatchSampler(__ItemSampler(train_), batch_size=args.batch_size, drop_last = True), num_workers = 0)
 test_loader = torch.utils.data.DataLoader(test_, batch_sampler = __BatchSampler(__ItemSampler(test_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
