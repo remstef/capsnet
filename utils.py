@@ -105,6 +105,71 @@ class RandomBatchSampler(torch.utils.data.sampler.BatchSampler):
     random.shuffle(batches)
     for batch in batches:
       yield batch
+
+'''
+Test the sampler:
+  
+  [[chr(i+ord('a')) for i in batch] for batch in EvenlyDistributingSampler(SequentialSampler(list(range(25))), batch_size=4, drop_last=True)]
+  
+'''      
+class EvenlyDistributingSampler(torch.utils.data.sampler.BatchSampler):
+  
+  def __init__(self, sampler, batch_size, drop_last, *args, **kwargs):
+    super(EvenlyDistributingSampler, self).__init__(sampler, batch_size, drop_last, *args, **kwargs)
+    if not drop_last:
+      raise NotImplementedError('Drop last is not yet implemented for `EvenlyDistributingSampler`.')
+    self.sampler = sampler
+    self.batch_size = batch_size
+    
+  def __iter__(self):        
+    # Starting from sequential data, batchify arranges the dataset into columns.
+    # For instance, with the alphabet as the sequence and batch size 4, we'd get
+    # ┌ a g m s ┐
+    # │ b h n t │
+    # │ c i o u │
+    # │ d j p v │
+    # │ e k q w │
+    # └ f l r x ┘.
+    # These columns are treated as independent by the model, which means that the
+    # dependence of e. g. 'g' on 'f' can not be learned, but allows more efficient
+    # batch processing.
+    #  def batchify(data, bsz):
+    #    # Work out how cleanly we can divide the dataset into bsz parts.
+    #    nbatch = data.size(0) // bsz
+    #    # Trim off any extra elements that wouldn't cleanly fit (remainders).
+    #    data = data.narrow(0, 0, nbatch * bsz)
+    #    # Evenly divide the data across the bsz batches.
+    #    data = data.view(bsz, -1).t().contiguous()
+    #    return data.to(device)
+    
+    # get_batch subdivides the source data into chunks of length args.bptt.
+    # If source is equal to the example output of the batchify function, with
+    # a bptt-limit of 2, we'd get the following two Variables for i = 0:
+    # ┌ a g m s ┐ ┌ b h n t ┐
+    # └ b h n t ┘ └ c i o u ┘
+    # Note that despite the name of the function, the subdivison of data is not
+    # done along the batch dimension (i.e. dimension 1), since that was handled
+    # by the batchify function. The chunks are along dimension 0, corresponding
+    # to the seq_len dimension in the LSTM.
+    #  def get_batch(source, i):
+    #    seq_len = min(args.bptt, len(source) - 1 - i)
+    #    data = source[i:i+seq_len]
+    #    target = source[i+1:i+1+seq_len].view(-1)
+    #    return data, target
+    
+    # tests:
+    # data = torch.Tensor([i for i in range(ord('a'),ord('z')+1)]).long()
+    # [xyz = chr(i) for i in [for r in data]]
+    #
+    
+    # each sampler returns indices, use those indices
+    data = torch.LongTensor(list(self.sampler))
+    nbatch = data.size(0) // self.batch_size
+    data = data.narrow(0, 0, nbatch * self.batch_size)
+    data = data.view(self.batch_size, -1).t() # this is important!
+    
+    for row_as_batch in data:
+      yield row_as_batch.tolist()
       
 class SimpleRepl(object):
   def __init__(self, evaluator=lambda cmd: print("You entered '%s'." % cmd), PS1 = '>> '):
