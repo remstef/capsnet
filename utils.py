@@ -105,6 +105,27 @@ class RandomBatchSampler(torch.utils.data.sampler.BatchSampler):
     random.shuffle(batches)
     for batch in batches:
       yield batch
+      
+class ShufflingBatchSampler(torch.utils.data.sampler.BatchSampler):
+  
+  def __init__(self, batchsampler, shuffle = True, seed = 10101):
+    super(ShufflingBatchSampler, self)
+    self.batchsampler = batchsampler
+    self.shuffle = True
+    self.seed = seed
+    
+  def __iter__(self):
+    batches = self.batchsampler.__iter__()
+    if self.shuffle:
+      batches = list(batches)
+      random.seed(self.seed)
+      random.shuffle(batches)
+    for batch in batches:
+      yield batch
+      
+  def __len__(self):
+    len(self.batchsampler)
+      
 
 '''
 Test the sampler:

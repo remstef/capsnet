@@ -12,7 +12,7 @@ import os
 import torch
 
 from data import TokenSequence, CharSequence
-from utils import Index, RandomBatchSampler, EvenlyDistributingSampler
+from utils import Index, ShufflingBatchSampler, EvenlyDistributingSampler
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
 
@@ -100,13 +100,15 @@ if args.init_weights:
 else:
   preemb_weights = None
 
-eval_batch_size = args.batch_size
-
+eval_batch_size = 10
 __ItemSampler = RandomSampler if args.shuffle_samples else SequentialSampler
-__BatchSampler = RandomBatchSampler if args.shuffle_batches else EvenlyDistributingSampler
-__BatchSampler = BatchSampler if args.sequential_sampling else __BatchSampler
+__BatchSampler = BatchSampler if args.sequential_sampling else EvenlyDistributingSampler  
+train_loader = torch.utils.data.DataLoader(train_, batch_sampler = ShufflingBatchSampler(__BatchSampler(__ItemSampler(train_), batch_size=args.batch_size, drop_last = True), shuffle = args.shuffle_batches, seed = args.seed), num_workers = 0)
+test_loader = torch.utils.data.DataLoader(test_, batch_sampler = __BatchSampler(__ItemSampler(test_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
+valid_loader = torch.utils.data.DataLoader(valid_, batch_sampler = __BatchSampler(__ItemSampler(valid_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
 print(__ItemSampler.__name__)
 print(__BatchSampler.__name__)
+print('Print shuffle training batches: ', args.shuffle_batches)
 
 train_loader = torch.utils.data.DataLoader(train_, batch_sampler = __BatchSampler(__ItemSampler(train_), batch_size=args.batch_size, drop_last = True), num_workers = 0)
 test_loader = torch.utils.data.DataLoader(test_, batch_sampler = __BatchSampler(__ItemSampler(test_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
