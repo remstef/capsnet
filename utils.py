@@ -109,7 +109,6 @@ class RandomBatchSampler(torch.utils.data.sampler.BatchSampler):
 class ShufflingBatchSampler(torch.utils.data.sampler.BatchSampler):
   
   def __init__(self, batchsampler, shuffle = True, seed = 10101):
-    super(ShufflingBatchSampler, self)
     self.batchsampler = batchsampler
     self.shuffle = True
     self.seed = seed
