@@ -124,7 +124,7 @@ class ShufflingBatchSampler(torch.utils.data.sampler.BatchSampler):
       yield batch
       
   def __len__(self):
-    len(self.batchsampler)
+    return len(self.batchsampler)
       
 
 '''
