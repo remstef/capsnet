@@ -96,7 +96,7 @@ def batchify(data, bsz):
     data = data.view(bsz, -1).t().contiguous()
     return data.to(device)
 
-eval_batch_size = args.batch_size
+eval_batch_size = 10
 train_data = batchify(train_.data, args.batch_size)
 val_data = batchify(valid_.data, eval_batch_size)
 test_data = batchify(test_.data, eval_batch_size)
@@ -178,7 +178,7 @@ def train():
     ntokens = len(index)
     hidden = model.init_hidden(args.batch_size)
     ix = list(range(0, train_data.size(0) - 1, args.bptt))
-    random.shuffle(ix)
+    # random.shuffle(ix)
     for batch, i in enumerate(ix):
         data, targets = get_batch(train_data, i)
         hidden = repackage_hidden(hidden)
