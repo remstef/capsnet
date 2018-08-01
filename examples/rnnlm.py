@@ -12,7 +12,7 @@ import os
 import torch
 
 from data import TokenSequence, CharSequence
-from utils import Index, ShufflingBatchSampler, EvenlyDistributingSampler, SimpleSGD
+from utils import Index, ShufflingBatchSampler, EvenlyDistributingSampler, SimpleSGD, getWrappedOptimizer
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
 
@@ -129,7 +129,9 @@ model = RNNLM(
     init_em_weights = preemb_weights, 
     train_em_weights = True).to(device)
 criterion = torch.nn.CrossEntropyLoss()
-optimizer = SimpleSGD(model.parameters(), lr = args.lr, clip = args.clip)
+#optimizer = SimpleSGD(model.parameters(), lr = args.lr, clip = args.clip)
+optimizer = getWrappedOptimizer(torch.optim.SGD)(model.parameters(), lr =args.lr, clip = args.clip)
+#optimizer = torch.optim.SGD(model.parameters(), lr =args.lr)
 print(model)
 print(criterion)
 print(optimizer)
