@@ -131,7 +131,7 @@ try:
       init_em_weights = preemb_weights, 
       train_em_weights = True).to(device)
   criterion = torch.nn.CrossEntropyLoss()
-  optimizer = getWrappedOptimizer(torch.optim.Adam)(model.parameters(), lr = args.lr, clip = args.clip)
+  optimizer = getWrappedOptimizer(SimpleSGD)(model.parameters(), lr = args.lr, clip = args.clip)
 
   print(model)
   print(criterion)
@@ -179,9 +179,6 @@ try:
     
   def on_forward(state):
     if state['train']:
-      # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-#      torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-
       loss_val = state['loss'].item()
       state['total_train_loss'] += loss_val
       if state['t'] % args.log_interval == 0:
@@ -238,19 +235,15 @@ try:
     else:
       # Anneal the learning rate if no improvement has been seen in the validation dataset.
       optimizer.adjustLearningRate(factor = args.lr_decay)
-#      lr = lr * args.lr_decay
-  
-#  lr = args.lr
-  engine = torchnet.engine.Engine()
-  
+
+  # define engine 
+  engine = torchnet.engine.Engine()  
   engine.hooks['on_start'] = on_start
   engine.hooks['on_start_epoch'] = on_start_epoch  
   engine.hooks['on_sample'] = on_sample
   engine.hooks['on_forward'] = on_forward
   engine.hooks['on_end_epoch'] = on_end_epoch
-  
-#  dummyoptimizer = torch.optim.Adam([torch.autograd.Variable(torch.Tensor(1), requires_grad = True)])
-  
+    
   ###############################################################################
   # run training
   ###############################################################################
