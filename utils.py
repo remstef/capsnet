@@ -112,12 +112,14 @@ class ShufflingBatchSampler(torch.utils.data.sampler.BatchSampler):
     self.batchsampler = batchsampler
     self.shuffle = True
     self.seed = seed
+    self.numitercalls = -1
     
   def __iter__(self):
+    self.numitercalls += 1
     batches = self.batchsampler.__iter__()
     if self.shuffle:
       batches = list(batches)
-      random.seed(self.seed)
+      random.seed(self.seed+self.numitercalls)
       random.shuffle(batches)
     for batch in batches:
       yield batch
