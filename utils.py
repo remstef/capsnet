@@ -193,6 +193,49 @@ class EvenlyDistributingSampler(torch.utils.data.sampler.BatchSampler):
     for row_as_batch in data:
       yield row_as_batch.tolist()
       
+      
+class SimpleOptimizer(torch.optim.Optimizer):
+  r""" Y = X + (-lr * Y')
+
+  Args:
+      params (iterable): iterable of parameters to optimize or dicts defining
+          parameter groups
+      lr (float): learning rate
+      clip (float): gradient clipping amount
+
+  Example:
+      >>> optimizer = SimpleOptimizer(model.parameters(), lr=0.1)
+      >>> optimizer.zero_grad()
+      >>> loss_fn(model(input), target).backward()
+      >>> optimizer.step()
+  """
+
+  def __init__(self, params, lr=torch.optim.required, clip=0.25):
+    if lr is not torch.optim.required and lr < 0.0:
+      raise ValueError("Invalid learning rate: {}".format(lr))
+    defaults = dict(lr=lr, clip=clip)
+    super(SimpleOptimizer, self).__init__(params, defaults)
+    
+  def step(self, closure=None):
+    """Performs a single optimization step.
+
+    Arguments:
+        closure (callable, optional): A closure that reevaluates the model
+            and returns the loss.
+    """
+    loss = None
+    if closure is not None:
+      loss = closure()
+
+    for group in self.param_groups:
+      # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
+      torch.nn.utils.clip_grad_norm_(group['params'], group['clip'])
+      for p in group['params']:
+        p.data.add_(-group['lr'], p.grad.data)
+
+    return loss
+
+      
 class SimpleRepl(object):
   def __init__(self, evaluator=lambda cmd: print("You entered '%s'." % cmd), PS1 = '>> '):
     self.ps1 = PS1
