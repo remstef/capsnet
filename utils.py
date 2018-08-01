@@ -210,5 +210,5 @@ class SimpleRepl(object):
       try:
         self.evaluate()
       except KeyboardInterrupt:
-        print('Bye Bye\n')
+        print('\nBye Bye\n')
         break
