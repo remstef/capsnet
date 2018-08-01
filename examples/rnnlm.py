@@ -12,7 +12,7 @@ import os
 import torch
 
 from data import TokenSequence, CharSequence
-from utils import Index, ShufflingBatchSampler, EvenlyDistributingSampler
+from utils import Index, ShufflingBatchSampler, EvenlyDistributingSampler, SimpleSGD
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
 
@@ -128,9 +128,11 @@ model = RNNLM(
     tie_weights = args.tied, 
     init_em_weights = preemb_weights, 
     train_em_weights = True).to(device)
-print(model)
 criterion = torch.nn.CrossEntropyLoss()
+optimizer = SimpleSGD(model.parameters(), lr = args.lr, clip = args.clip)
+print(model)
 print(criterion)
+print(optimizer)
 ###############################################################################
 # Training code
 ###############################################################################
@@ -208,10 +210,11 @@ def train():
         loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
 
-        # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-        torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-        for p in model.parameters():
-            p.data.add_(-lr, p.grad.data)
+#        # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
+#        torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+#        for p in model.parameters():
+#            p.data.add_(-lr, p.grad.data)
+        optimizer.step()
 
         total_loss += loss.item()
 

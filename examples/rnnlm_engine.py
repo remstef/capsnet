@@ -14,7 +14,7 @@ import torchnet
 from tqdm import tqdm
 
 from data import CharSequence, TokenSequence
-from utils import Index, EvenlyDistributingSampler, ShufflingBatchSampler
+from utils import Index, EvenlyDistributingSampler, ShufflingBatchSampler, SimpleSGD, getWrappedOptimizer
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
 
@@ -53,6 +53,8 @@ try:
                       help='random seed')
   parser.add_argument('--cuda', action='store_true',
                       help='use CUDA')
+  parser.add_argument('--log-interval', type=int, default=200, metavar='N',
+                      help='report interval')
   parser.add_argument('--shuffle_batches', action='store_true',
                       help='shuffle batches')
   parser.add_argument('--shuffle_samples', action='store_true',
@@ -128,9 +130,13 @@ try:
       tie_weights = args.tied, 
       init_em_weights = preemb_weights, 
       train_em_weights = True).to(device)
-  print(model)
   criterion = torch.nn.CrossEntropyLoss()
-  hidden = None
+#  optimizer = SimpleSGD(model.parameters(), lr = args.lr, clip = args.clip)
+  optimizer = getWrappedOptimizer(torch.optim.SGD)(model.parameters(), lr =args.lr, clip = args.clip)
+
+  print(model)
+  print(criterion)
+  print(optimizer)
   
   ###############################################################################
   # Set up Engine
@@ -144,7 +150,7 @@ try:
       return tuple(repackage_hidden(v) for v in h)
   
   def process(batch_data):
-    global hidden, lr
+    global hidden
     
     x_batch, y_batch, is_training = batch_data
     # reshape x and y batches so seqlen is dim 0 and batch is dim 1
@@ -170,14 +176,28 @@ try:
     
   def on_sample(state):
     state['sample'].append(state['train'])
+    state['batch_start_time'] = time.time()
     
   def on_forward(state):
     if state['train']:
       # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-      torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-      for p in model.parameters():
-        p.data.add_(-lr, p.grad.data)
-      state['total_train_loss'] += state['loss'].item()
+#      torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+
+      loss_val = state['loss'].item()
+      state['total_train_loss'] += loss_val
+      if state['t'] % args.log_interval == 0:
+        cur_loss = state['total_train_loss'] / args.log_interval
+        elapsed = time.time() - state['batch_start_time']
+        tqdm.write('| epoch {:3d} | batch {:5d} | lr {:02.2f} | ms/batch {:5.2f} | loss {:5.2f} | ppl {:8.2f}'.format(
+            state['epoch'], 
+            state['t'], 
+            optimizer.getLearingRate(),
+            elapsed * 1000 / args.log_interval, 
+            cur_loss, 
+            math.exp(cur_loss)
+            ))
+        # todo check if you should rather define a new variable
+        state['total_train_loss'] = 0
     state['total_test_loss'] += state['loss'].item()
     
   def on_start_epoch(state):
@@ -189,7 +209,7 @@ try:
     state['iterator'] = tqdm(state['iterator'], ncols=89, desc='train')
   
   def on_end_epoch(state):
-    global hidden, lr
+    global hidden
     
     model.eval()
     hidden = model.init_hidden(eval_batch_size)
@@ -200,9 +220,9 @@ try:
     print('++ Epoch {:03d} took {:06.2f}s (lr {:5.{lrprec}f}) ++ {:s}'.format(
         state['epoch'], 
         (time.time() - state['epoch_start_time']),
-        lr,
+        optimizer.getLearningRate(),
         '-'*49,
-        lrprec=2 if lr >= 1 else 5))
+        lrprec=2 if optimizer.getLearningRate() >= 1 else 5))
     print('| train loss {:5.2f} | valid loss {:5.2f} | train ppl {:8.2f} | valid ppl {:8.2f}'.format( 
         train_loss, 
         val_loss,
@@ -218,9 +238,10 @@ try:
         torch.save(model, f)
     else:
       # Anneal the learning rate if no improvement has been seen in the validation dataset.
-      lr = lr * args.lr_decay
+      optimizer.adjustLearningRate(factor = args.lr_decay)
+#      lr = lr * args.lr_decay
   
-  lr = args.lr
+#  lr = args.lr
   engine = torchnet.engine.Engine()
   
   engine.hooks['on_start'] = on_start
@@ -229,13 +250,13 @@ try:
   engine.hooks['on_forward'] = on_forward
   engine.hooks['on_end_epoch'] = on_end_epoch
   
-  dummyoptimizer = torch.optim.Adam([torch.autograd.Variable(torch.Tensor(1), requires_grad = True)])
+#  dummyoptimizer = torch.optim.Adam([torch.autograd.Variable(torch.Tensor(1), requires_grad = True)])
   
   ###############################################################################
   # run training
   ###############################################################################
   
-  final_state = engine.train(process, train_loader, maxepoch=args.epochs, optimizer=dummyoptimizer)
+  final_state = engine.train(process, train_loader, maxepoch=args.epochs, optimizer=optimizer)
   
   # Load the best saved model.
   with open(args.save, 'rb') as f:
