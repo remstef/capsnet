@@ -211,22 +211,13 @@ class SimpleSGD(torch.optim.Optimizer):
       
     for group in self.param_groups:
       # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-      torch.nn.utils.clip_grad_norm_(group['params'], group['clip'])
+      # torch.nn.utils.clip_grad_norm_(group['params'], group['clip'])
       for p in group['params']:
         d_p = p.grad.data
         p.data.add_(-group['lr'], d_p)
 
     return loss
-  
-  def getLearingRate(self):
-    lr = [group['lr'] for group in self.param_groups]
-    return lr[0] if len(lr) == 1 else lr
-  
-  def adjustLearningRate(self, factor=None):
-   for group in self.param_groups:
-     newlr = group['lr'] * factor
-     group['lr'] = newlr
-     
+       
           
 def getWrappedOptimizer(optimizer_clazz):
 
@@ -236,7 +227,7 @@ def getWrappedOptimizer(optimizer_clazz):
       super(NewOptimizer, self).__init__(*args, **kwargs)
       self.clip = clip
   
-    def getLearingRate(self):
+    def getLearningRate(self):
       lr = [group['lr'] for group in self.param_groups]
       return lr[0] if len(lr) == 1 else lr
     
