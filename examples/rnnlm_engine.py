@@ -131,7 +131,7 @@ try:
       init_em_weights = preemb_weights, 
       train_em_weights = True).to(device)
   criterion = torch.nn.CrossEntropyLoss()
-  optimizer = getWrappedOptimizer(SimpleSGD)(model.parameters(), lr = args.lr, clip = args.clip)
+  optimizer = getWrappedOptimizer(torch.optim.SGD)(model.parameters(), lr = args.lr, clip = args.clip)
 
   print(model)
   print(criterion)

@@ -129,9 +129,7 @@ model = RNNLM(
     init_em_weights = preemb_weights, 
     train_em_weights = True).to(device)
 criterion = torch.nn.CrossEntropyLoss()
-#optimizer = SimpleSGD(model.parameters(), lr = args.lr, clip = args.clip)
-optimizer = getWrappedOptimizer(torch.optim.SGD)(model.parameters(), lr =args.lr, clip = args.clip)
-#optimizer = torch.optim.SGD(model.parameters(), lr =args.lr)
+optimizer = getWrappedOptimizer(SimpleSGD)(model.parameters(), lr =args.lr, clip = args.clip)
 print(model)
 print(criterion)
 print(optimizer)
@@ -211,11 +209,6 @@ def train():
         
         loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
-
-#        # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-#        torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-#        for p in model.parameters():
-#            p.data.add_(-lr, p.grad.data)
         optimizer.step()
 
         total_loss += loss.item()
@@ -227,7 +220,7 @@ def train():
                 epoch, 
                 batch, 
                 len(train_loader), 
-                lr,
+                optimizer.getLearningRate(),
                 elapsed * 1000 / args.log_interval, 
                 cur_loss, 
                 math.exp(cur_loss)
@@ -236,7 +229,6 @@ def train():
             start_time = time.time()
 
 # Loop over epochs.
-lr = args.lr
 best_val_loss = None
 
 # At any point you can hit Ctrl + C to break out of training early.
@@ -260,7 +252,7 @@ try:
             best_val_loss = val_loss
         else:
             # Anneal the learning rate if no improvement has been seen in the validation dataset.
-            lr /= 4.0
+            optimizer.adjustLearningRate(1. / 4.0)
 except KeyboardInterrupt:
     print('-' * 89)
     print('Exiting from training early')
