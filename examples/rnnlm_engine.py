@@ -190,7 +190,7 @@ try:
         tqdm.write('| epoch {:3d} | batch {:5d} | lr {:02.2f} | ms/batch {:5.2f} | loss {:5.2f} | ppl {:8.2f}'.format(
             state['epoch'], 
             state['t'], 
-            optimizer.getLearingRate(),
+            optimizer.getLearningRate(),
             elapsed * 1000 / args.log_interval, 
             cur_loss, 
             math.exp(cur_loss)
