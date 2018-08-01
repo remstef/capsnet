@@ -9,6 +9,8 @@ Created on Fri Jul 27 20:15:22 2018
 import random
 import torch.utils.data
 
+requiredParam = object()
+
 class Index(object):
   
   def __init__(self, initwords = [], unkindex = None):
@@ -192,48 +194,69 @@ class EvenlyDistributingSampler(torch.utils.data.sampler.BatchSampler):
     
     for row_as_batch in data:
       yield row_as_batch.tolist()
+
       
-      
-class SimpleOptimizer(torch.optim.Optimizer):
-  r""" Y = X + (-lr * Y')
+class SimpleSGD(torch.optim.Optimizer):
 
-  Args:
-      params (iterable): iterable of parameters to optimize or dicts defining
-          parameter groups
-      lr (float): learning rate
-      clip (float): gradient clipping amount
-
-  Example:
-      >>> optimizer = SimpleOptimizer(model.parameters(), lr=0.1)
-      >>> optimizer.zero_grad()
-      >>> loss_fn(model(input), target).backward()
-      >>> optimizer.step()
-  """
-
-  def __init__(self, params, lr=torch.optim.required, clip=0.25):
-    if lr is not torch.optim.required and lr < 0.0:
+  def __init__(self, params, lr=requiredParam, clip=0.25):
+    if lr is not requiredParam and lr < 0.0:
       raise ValueError("Invalid learning rate: {}".format(lr))
     defaults = dict(lr=lr, clip=clip)
-    super(SimpleOptimizer, self).__init__(params, defaults)
+    super(SimpleSGD, self).__init__(params, defaults)
     
   def step(self, closure=None):
-    """Performs a single optimization step.
-
-    Arguments:
-        closure (callable, optional): A closure that reevaluates the model
-            and returns the loss.
-    """
     loss = None
     if closure is not None:
       loss = closure()
-
+      
     for group in self.param_groups:
       # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
       torch.nn.utils.clip_grad_norm_(group['params'], group['clip'])
       for p in group['params']:
-        p.data.add_(-group['lr'], p.grad.data)
+        d_p = p.grad.data
+        p.data.add_(-group['lr'], d_p)
 
     return loss
+  
+  def getLearingRate(self):
+    lr = [group['lr'] for group in self.param_groups]
+    return lr[0] if len(lr) == 1 else lr
+  
+  def adjustLearningRate(self, factor=None):
+   for group in self.param_groups:
+     newlr = group['lr'] * factor
+     group['lr'] = newlr
+     
+          
+def getWrappedOptimizer(optimizer_clazz):
+
+  class NewOptimizer(optimizer_clazz):
+    
+    def __init__(self,  *args, clip = 0.2, **kwargs):
+      super(NewOptimizer, self).__init__(*args, **kwargs)
+      self.clip = clip
+  
+    def getLearingRate(self):
+      lr = [group['lr'] for group in self.param_groups]
+      return lr[0] if len(lr) == 1 else lr
+    
+    def adjustLearningRate(self, factor=None):
+      for group in self.param_groups:
+        newlr = group['lr'] * factor
+        group['lr'] = newlr
+       
+    def step(self, closure=None):
+      loss = None
+      if closure is not None:
+        loss = closure()
+      groups = self.param_groups
+      for group in groups:
+        torch.nn.utils.clip_grad_norm_(group['params'], self.clip)      
+        
+      super(NewOptimizer, self).step(None)
+      return loss
+  
+  return NewOptimizer
 
       
 class SimpleRepl(object):
