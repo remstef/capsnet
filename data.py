@@ -33,10 +33,10 @@ import pickle
 '''
  Sequences in a single 1d tensor
 '''
-class SequenceDataset(torch.utils.data.Dataset):
+class FixedLengthSequenceDataset(torch.utils.data.Dataset):
 
   def __init__(self, seqlen = 35, skip = 35):
-    super(SequenceDataset, self)
+    super(FixedLengthSequenceDataset, self)
     self.seqlen = seqlen
     self.skip = skip
     self.data = None
@@ -75,15 +75,9 @@ class SequenceDataset(torch.utils.data.Dataset):
     # y5          xxx
     # get the sequence for index 
     skip_index = index * self.skip # make sure each sequence is only read once
-    import random
-    seqlen = random.randint(10, self.seqlen)
-    x = self.data[skip_index     : skip_index + seqlen    ]
-    y = self.data[skip_index + 1 : skip_index + seqlen + 1]
-    x_ = torch.zeros(self.seqlen).long()
-    y_ = torch.zeros(self.seqlen).long()
-    x_[:seqlen] = x
-    y_[:seqlen] = y
-    return x_, y_, seqlen
+    x = self.data[skip_index     : skip_index + self.seqlen    ]
+    y = self.data[skip_index + 1 : skip_index + self.seqlen + 1]
+    return x, y, self.seqlen
   
   def cuda(self):
     self.data = self.data.cuda()
@@ -94,7 +88,7 @@ class SequenceDataset(torch.utils.data.Dataset):
     return self
   
 
-class CharSequence(SequenceDataset):
+class CharSequence(FixedLengthSequenceDataset):
   
   def load(self):
     print('Loading chars from %s' % self.file, file=sys.stderr)    
@@ -117,7 +111,7 @@ class CharSequence(SequenceDataset):
 '''
  tokens as a sequence in a single 1d tensor
 '''
-class TokenSequence(SequenceDataset):
+class TokenSequence(FixedLengthSequenceDataset):
   
   def load(self):
     print('Loading %s sentences from %s' % (self.subset, self.file), file=sys.stderr)    
