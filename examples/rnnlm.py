@@ -167,7 +167,7 @@ def evaluate(d_loader):
     ntokens = len(index)
     hidden = model.init_hidden(eval_batch_size)
     with torch.no_grad():
-        for batch, batch_data in enumerate(tqdm(d_loader), ncols=89, desc = 'Test '):
+        for batch, batch_data in enumerate(tqdm(d_loader, ncols=89, desc = 'Test ')):
             data, targets, seqlengths = reshape_batch(batch_data)
             output, hidden = model(data, hidden, seqlengths)
             output_flat = output.view(-1, ntokens)
