@@ -13,7 +13,7 @@ import torch
 import torchnet
 from tqdm import tqdm
 
-from data import CharSequence, TokenSequence
+import data
 from utils import Index, EvenlyDistributingSampler, ShufflingBatchSampler, SimpleSGD, getWrappedOptimizer
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
@@ -80,13 +80,18 @@ try:
   ###############################################################################
   # Load data
   ###############################################################################
-  __SequenceDataset = CharSequence if args.chars else TokenSequence
+  __SequenceDataset = data.CharSequence if args.chars else data.TokenSequence
   print(__SequenceDataset.__name__)
   index = Index(initwords = ['<unk>'], unkindex = 0)
-  train_ = __SequenceDataset(args.data, subset='train.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
-  index.freeze(silent = True).tofile(os.path.join(args.data, 'vocab_chars.txt' if args.chars else 'vocab_tokens.txt'))
-  test_ = __SequenceDataset(args.data, subset='test.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
-  valid_ = __SequenceDataset(args.data, subset='valid.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+#  train_ = __SequenceDataset(args.data, subset='train.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+#  index.freeze(silent = True).tofile(os.path.join(args.data, 'vocab_chars.txt' if args.chars else 'vocab_tokens.txt'))
+#  test_ = __SequenceDataset(args.data, subset='test.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+#  valid_ = __SequenceDataset(args.data, subset='valid.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+  
+  train_ = data.SemEval2010('../data/semeval2010/', subset='train.txt', index = index).to(device)
+  index.freeze(silent = True).tofile(os.path.join('../data/semeval2010/', 'vocab_chars.txt' if args.chars else 'vocab_tokens.txt'))
+  test_ = data.SemEval2010('../data/semeval2010/', subset='test.txt', index = index).to(device)
+  valid_ = data.SemEval2010('../data/semeval2010/', subset='test.txt', index = index).to(device)
 
   # load pre embedding
   if args.init_weights:
@@ -114,7 +119,7 @@ try:
   valid_loader = torch.utils.data.DataLoader(valid_, batch_sampler = __BatchSampler(__ItemSampler(valid_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
   print(__ItemSampler.__name__)
   print(__BatchSampler.__name__)
-  print('Print shuffle training batches: ', args.shuffle_batches)
+  print('Shuffle training batches: ', args.shuffle_batches)
   
   ###############################################################################
   # Build the model
@@ -151,7 +156,7 @@ try:
   def process(batch_data):
     global hidden
     
-    x_batch, y_batch, is_training = batch_data
+    x_batch, y_batch, seqlengths, is_training = batch_data
     # reshape x and y batches so seqlen is dim 0 and batch is dim 1
     x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
     y_batch = y_batch.transpose(0,1)
@@ -159,7 +164,7 @@ try:
     hidden = repackage_hidden(hidden)    
     if is_training:
       model.zero_grad()
-    output, hidden = model(x_batch, hidden)  
+    output, hidden = model(x_batch, hidden, seqlengths)  
     output_flat = output.view(-1, ntokens)
     targets_flat = y_batch.contiguous().view(-1)  
     loss = criterion(output_flat, targets_flat)

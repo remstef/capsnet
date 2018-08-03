@@ -9,9 +9,9 @@ import argparse
 import time
 import math
 import os
+from tqdm import tqdm
 import torch
-
-from data import TokenSequence, CharSequence
+import data
 from utils import Index, ShufflingBatchSampler, EvenlyDistributingSampler, SimpleSGD, getWrappedOptimizer
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
@@ -74,13 +74,18 @@ device = torch.device("cuda" if args.cuda else "cpu")
 ###############################################################################
 # Load data
 ###############################################################################
-__SequenceDataset = CharSequence if args.chars else TokenSequence
+__SequenceDataset = data.CharSequence if args.chars else data.TokenSequence
 print(__SequenceDataset.__name__)
 index = Index(initwords = ['<unk>'], unkindex = 0)
-train_ = __SequenceDataset(args.data, subset='train.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
-index.freeze(silent = True).tofile(os.path.join(args.data, 'vocab_chars.txt' if args.chars else 'vocab_tokens.txt'))
-test_ = __SequenceDataset(args.data, subset='test.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
-valid_ = __SequenceDataset(args.data, subset='valid.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+#train_ = __SequenceDataset(args.data, subset='train.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+#index.freeze(silent = True).tofile(os.path.join(args.data, 'vocab_chars.txt' if args.chars else 'vocab_tokens.txt'))
+#test_ = __SequenceDataset(args.data, subset='test.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+#valid_ = __SequenceDataset(args.data, subset='valid.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+
+train_ = data.SemEval2010('../data/semeval2010/', subset='train.txt', index = index).to(device)
+index.freeze(silent = True).tofile(os.path.join('../data/semeval2010/', 'vocab_chars.txt' if args.chars else 'vocab_tokens.txt'))
+test_ = data.SemEval2010('../data/semeval2010/', subset='test.txt', index = index).to(device)
+valid_ = data.SemEval2010('../data/semeval2010/', subset='test.txt', index = index).to(device)
 
 # load pre embedding
 if args.init_weights:
@@ -108,11 +113,7 @@ test_loader = torch.utils.data.DataLoader(test_, batch_sampler = __BatchSampler(
 valid_loader = torch.utils.data.DataLoader(valid_, batch_sampler = __BatchSampler(__ItemSampler(valid_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
 print(__ItemSampler.__name__)
 print(__BatchSampler.__name__)
-print('Print shuffle training batches: ', args.shuffle_batches)
-
-train_loader = torch.utils.data.DataLoader(train_, batch_sampler = __BatchSampler(__ItemSampler(train_), batch_size=args.batch_size, drop_last = True), num_workers = 0)
-test_loader = torch.utils.data.DataLoader(test_, batch_sampler = __BatchSampler(__ItemSampler(test_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
-valid_loader = torch.utils.data.DataLoader(valid_, batch_sampler = __BatchSampler(__ItemSampler(valid_), batch_size=eval_batch_size, drop_last = True), num_workers = 0)
+print('Shuffle training batches: ', args.shuffle_batches)
 
 ###############################################################################
 # Build the model
@@ -146,7 +147,14 @@ def repackage_hidden(h):
 
 def reshape_batch(batch_data):
     # dimensions: batch x seqlen
-    x_batch, y_batch = batch_data
+    x_batch, y_batch, seqlengths = batch_data
+    if len(seqlengths.unique()) > 0:
+      # reorder padded sequences by size, because this is needed for pack_padded_sequence in rnn_nets.RNNLM
+      seqlengths, idx = seqlengths.sort(dim=0, descending=True)
+      # reorder and trim to longest sequence in the batch
+      x_batch = x_batch[idx,:seqlengths[0],...]
+      y_batch = y_batch[idx,:seqlengths[0],...]
+
     # reshape x_batch so seqlen is dim 0 and batch is dim 1
     x_batch = x_batch.transpose(0,1).contiguous() # switch dim 0 with dim 1
     # reshape y_batch so we get a 1d tensor of length seqlen x batch that matches with x_batch
@@ -159,8 +167,7 @@ def reshape_batch(batch_data):
 #        print('--- y')
 #        print(list(index[y_batch.tolist()]))
       #####
-    return x_batch, y_batch
-
+    return x_batch, y_batch, seqlengths
 
 def evaluate(d_loader):
     # Turn on evaluation mode which disables dropout.
@@ -169,9 +176,9 @@ def evaluate(d_loader):
     ntokens = len(index)
     hidden = model.init_hidden(eval_batch_size)
     with torch.no_grad():
-        for batch, batch_data in enumerate(d_loader):
-            data, targets = reshape_batch(batch_data)
-            output, hidden = model(data, hidden)
+        for batch, batch_data in enumerate(tqdm(d_loader), ncols=89, desc = 'Test '):
+            data, targets, seqlengths = reshape_batch(batch_data)
+            output, hidden = model(data, hidden, seqlengths)
             output_flat = output.view(-1, ntokens)
             loss_ = criterion(output_flat, targets).item()
             current_loss = len(data) * loss_
@@ -200,12 +207,12 @@ def train():
     ntokens = len(index)
     hidden = model.init_hidden(args.batch_size)
     
-    for batch, batch_data in enumerate(train_loader):
+    for batch, batch_data in enumerate(tqdm(train_loader, ncols=89, desc='train')):
     
-        data, targets = reshape_batch(batch_data)
+        data, targets, seqlengths = reshape_batch(batch_data)
         hidden = repackage_hidden(hidden)
         model.zero_grad()
-        output, hidden = model(data, hidden)
+        output, hidden = model(data, hidden, seqlengths)
         
         loss = criterion(output.view(-1, ntokens), targets)
         loss.backward()
@@ -216,7 +223,7 @@ def train():
         if batch % args.log_interval == 0 and batch > 0:
             cur_loss = total_loss / args.log_interval
             elapsed = time.time() - start_time
-            print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | loss {:5.2f} | ppl {:8.2f}'.format(
+            tqdm.write('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | loss {:5.2f} | ppl {:8.2f}'.format(
                 epoch, 
                 batch, 
                 len(train_loader), 
