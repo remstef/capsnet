@@ -12,6 +12,7 @@ import os
 import pandas
 import csv
 import torch
+from tqdm import tqdm
 import torch.utils
 import torch.utils.data
 import sys
@@ -74,9 +75,15 @@ class SequenceDataset(torch.utils.data.Dataset):
     # y5          xxx
     # get the sequence for index 
     skip_index = index * self.skip # make sure each sequence is only read once
-    x = self.data[skip_index     : skip_index + self.seqlen    ]
-    y = self.data[skip_index + 1 : skip_index + self.seqlen + 1]
-    return x, y 
+    import random
+    seqlen = random.randint(10, self.seqlen)
+    x = self.data[skip_index     : skip_index + seqlen    ]
+    y = self.data[skip_index + 1 : skip_index + seqlen + 1]
+    x_ = torch.zeros(self.seqlen).long()
+    y_ = torch.zeros(self.seqlen).long()
+    x_[:seqlen] = x
+    y_[:seqlen] = y
+    return x_, y_, seqlen
   
   def cuda(self):
     self.data = self.data.cuda()
@@ -131,6 +138,88 @@ class TokenSequence(SequenceDataset):
     self.file = os.path.join(self.path, self.subset)
     self.index = index if index is not None else Index()
     self.data = self.load()
+    
+'''
+
+'''
+class SemEval2010(torch.utils.data.Dataset):
+
+  def __init__(self, path, subset = 'train.txt', index = None, classindex = None):
+    self.path = path
+    self.subset = subset
+    self.index = index if index is not None else Index()
+    self.classindex = classindex if classindex is not None else Index()
+    self.load()
+
+  def load(self):
+    source_file = os.path.join(self.path, self.subset)
+    processed_file = source_file + '.pkl'
+    
+    # do some preprocessing if preprocessed file does not exist
+    if not os.path.isfile(processed_file):
+      #import spacy; nlp=spacy.load('en')
+      print('Applying spacy.')
+      import en_core_web_sm
+      nlp = en_core_web_sm.load()
+      tqdm.pandas()
+      samples = pandas.read_csv(
+          source_file,
+          sep='\t',
+          delim_whitespace = False,
+          quoting=csv.QUOTE_MINIMAL,
+          names=['id', 'originalsentence', 'label', 'comment'],
+          skip_blank_lines=True,
+          encoding='utf-8')
+      samples['original_offset_e1'] = samples.originalsentence.apply(lambda s: (s.find('<e1>'), s.find('</e1>')))
+      samples['original_offset_e2'] = samples.originalsentence.apply(lambda s: (s.find('<e2>'), s.find('</e2>')))
+      samples['e1'] = samples.apply(lambda row: row.originalsentence[row.original_offset_e1[0] + 4:row.original_offset_e1[1]], axis=1)
+      samples['e2'] = samples.apply(lambda row: row.originalsentence[row.original_offset_e2[0] + 4:row.original_offset_e2[1]], axis=1)
+      samples['l'] = samples.apply(lambda row: row.originalsentence[:row.original_offset_e1[0]], axis=1)
+      samples['r'] = samples.apply(lambda row: row.originalsentence[row.original_offset_e2[1]+5:], axis=1)
+      samples['m'] = samples.apply(lambda row: row.originalsentence[row.original_offset_e1[1]+5:row.original_offset_e2[0]], axis=1)
+      samples['sentence'] = samples.apply(lambda row: row.l+row.e1+row.m+row.e2+row.r, axis=1)
+      samples['offset_e1'] = samples.apply(lambda row: (len(row.l), len(row.l) + len(row.e1)), axis=1)
+      samples['offset_e2'] = samples.apply(lambda row: (len(row.l) + len(row.e1) + len(row.m), len(row.l) + len(row.e1) + len(row.m) + len(row.e2)), axis=1)
+      samples['spacy'] = samples.sentence.progress_apply(lambda s: nlp(s))
+      samples.to_pickle(processed_file)
+      del samples
+
+    # load processed messages
+    self.samples = pandas.read_pickle(processed_file)
+    self.samples['sentence_tensor'] = self.samples.spacy.apply(lambda doc: torch.LongTensor([self.index.add(t.text) for t in doc]))
+    self.samples['sentence_tensor'] = self.samples.sentence_tensor.apply(lambda t: torch.cat((t,torch.LongTensor([self.index.add('<eos>')])),0))    
+    self.samples['sentence_length'] = self.samples.sentence_tensor.apply(lambda t: t.size(0))
+    maxlength = self.samples.sentence_length.max()
+    pad_val = self.index.add('<pad>')
+    self.samples['sentence_tensor_padded'] = self.samples.sentence_tensor.apply(lambda t: self.pad(t, maxlength, pad_val))
+
+    self.data = torch.stack(self.samples.sentence_tensor_padded.tolist())
+    return True
+  
+  def __len__(self):
+    return self.data.size(0)
+
+  def __getitem__(self, index):
+    seq = self.data[index]
+    x = seq[:-1]
+    y = seq[1:]
+    l = self.samples.sentence_length.iloc[index] - 1
+    return x, y, l
+  
+  def pad(self, x, length, padding_value):
+    y = torch.ones((length,)).long() * padding_value
+    y[:len(x)] = x
+    return y
+  
+  def cuda(self):
+      self.data = self.data.cuda()
+      return self
+  
+  def to(self, device):
+    self.data = self.data.to(device)
+    return self
+  
+
 
 class SpamDataset(torch.utils.data.Dataset):
 
