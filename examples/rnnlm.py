@@ -148,14 +148,6 @@ def repackage_hidden(h):
 def reshape_batch(batch_data):
     # dimensions: batch x seqlen
     x_batch, y_batch, seqlengths = batch_data
-    if len(seqlengths.unique()) > 0:
-        # reorder padded sequences by size, because this is needed for pack_padded_sequence in rnn_nets.RNNLM
-        seqlengths, idx = seqlengths.sort(dim=0, descending=True)
-        # reorder and trim to longest sequence in the batch
-#        x_batch = x_batch[idx,:seqlengths[0],...]
-#        y_batch = y_batch[idx,:seqlengths[0],...]
-        x_batch = x_batch[idx]
-        y_batch = y_batch[idx]
     # reshape x_batch so seqlen is dim 0 and batch is dim 1
     x_batch = x_batch.transpose(0,1).contiguous() # switch dim 0 with dim 1
     # reshape y_batch so we get a 1d tensor of length seqlen x batch that matches with x_batch
