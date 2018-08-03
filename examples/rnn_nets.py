@@ -45,10 +45,10 @@ class RNNLM(torch.nn.Module):
     padded_sequences = seqlengths is not None and len(seqlengths.unique()) > 1      
     if padded_sequences: # sequences are padded and must be ordered by seqlength!
       # create a PackedSequence from the padded sequences
-      e = torch.nn.utils.rnn.pack_padded_sequence(e, seqlengths, batch_first = False) # unpad
+      e = torch.nn.utils.rnn.pack_padded_sequence(e, seqlengths) # unpad
     o, h = self.rnn(e, hidden)
     if padded_sequences:
-      o, _ = torch.nn.utils.rnn.pad_packed_sequence(o, batch_first = False, total_length = inputs.size(0)) # pad again
+      o, _ = torch.nn.utils.rnn.pad_packed_sequence(o)#, total_length = inputs.size(0)) # pad again
     o = self.drop(o)
     d = self.decoder(o.view(o.size(0)*o.size(1), o.size(2)))
     d = d.view(o.size(0), o.size(1), d.size(1))
@@ -75,11 +75,14 @@ class RNNLM_dynamic(RNNLM):
     e = self.drop(e)
     padded_sequences = seqlengths is not None and len(seqlengths.unique()) > 1      
     if padded_sequences: # sequences are padded and must be ordered by seqlength!
-      # create a PackedSequence from the padded sequences
-      e = torch.nn.utils.rnn.pack_padded_sequence(e, seqlengths, batch_first = False) # unpad
+      # 1. sort sequences by length; 2. create a PackedSequence from the padded sequences
+      e, seqlengths_sorted, _, invidx = self.sort_padded_inputs_by_length(e, seqlengths)
+      e = torch.nn.utils.rnn.pack_padded_sequence(e, seqlengths_sorted, batch_first = False) # unpad
     o, h = self.rnn(e, hidden)
     if padded_sequences:
+      # 1. unpack PackedSequence to padded sequence; 2. restore original ordering
       o, _ = torch.nn.utils.rnn.pad_packed_sequence(o, batch_first = False, total_length = inputs.size(0)) # pad again
+      o = o[:,invidx,...]
     o = self.drop(o)
     d = self.decoder(o.view(o.size(0)*o.size(1), o.size(2)))
     d = d.view(o.size(0), o.size(1), d.size(1))
@@ -87,10 +90,10 @@ class RNNLM_dynamic(RNNLM):
 
   def sort_padded_inputs_by_length(self, x, lengths):
     lengths_sorted, idx = lengths.sort(dim=0, descending=True)
-    _, rev_idx = idx.sort()
-    y = x[:,idx,...] # order by batch dim 
-    return y, lengths_sorted, idx, rev_idx
-  
+    _, invidx = idx.sort()
+    # reorder and trim to longest sequence in the batch
+    y = x[:lengths_sorted[0],idx,...]
+    return y, lengths_sorted, idx, invidx
       
 class RNNLM_original(torch.nn.Module):
   """Container module with an encoder, a recurrent module, and a decoder."""

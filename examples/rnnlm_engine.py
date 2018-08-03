@@ -125,7 +125,7 @@ try:
   # Build the model
   ###############################################################################
   ntokens = len(index)
-  model = rnn_nets.RNNLM(
+  model = rnn_nets.RNNLM_dynamic(
       rnn_type = args.model, 
       ntoken = ntokens, 
       ninp = args.emsize, 
