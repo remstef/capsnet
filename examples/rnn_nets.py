@@ -6,7 +6,18 @@ import torch
 class RNNLM(torch.nn.Module):
   '''https://discuss.pytorch.org/t/lstm-to-bi-lstm/12967'''
 
-  def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False, init_em_weights=None, train_em_weights=True):
+  def __init__(
+      self, 
+      rnn_type, 
+      ntoken, 
+      ninp, # == emsize
+      nhid, 
+      nlayers, 
+      dropout=0.5, 
+      tie_weights=False, 
+      init_em_weights=None, 
+      train_em_weights=True):
+    
     super(RNNLM, self).__init__()
     self.drop = torch.nn.Dropout(dropout)
     self.encoder = torch.nn.Embedding(ntoken, ninp)
@@ -38,16 +49,6 @@ class RNNLM(torch.nn.Module):
     self.decoder.bias.data.zero_()
     self.decoder.weight.data.uniform_(-initrange, initrange)
 
-  def forward(self, inputs, hidden, seqlengths = None):
-    # inputs.size() should be = seq_len, batch_size, feature_size (1 = word index)
-    e = self.encoder(inputs)
-    e = self.drop(e)
-    o, h = self.rnn(e, hidden)
-    o = self.drop(o)
-    d = self.decoder(o.view(o.size(0)*o.size(1), o.size(2)))
-    d = d.view(o.size(0), o.size(1), d.size(1))
-    return d, h
-
   def init_hidden(self, bsz):
     w = next(self.parameters())
     if self.rnn_type == 'LSTM':
@@ -55,13 +56,6 @@ class RNNLM(torch.nn.Module):
               w.new_zeros(self.nlayers, bsz, self.nhid))
     else:
       return w.new_zeros(self.nlayers, bsz, self.nhid)
-
-  
-class RNNLM_dynamic(RNNLM):
-  '''https://discuss.pytorch.org/t/lstm-to-bi-lstm/12967'''
-
-  def __init__(self, *args, **kwargs):
-    super(RNNLM_dynamic, self).__init__(*args, **kwargs)
 
   def forward(self, inputs, hidden, seqlengths = None):
     # inputs.size() should be = seq_len, batch_size, feature_size (1 = word index)
