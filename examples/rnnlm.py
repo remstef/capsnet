@@ -12,11 +12,11 @@ import os
 from tqdm import tqdm
 import torch
 import data
-from utils import Index, ShufflingBatchSampler, EvenlyDistributingSampler, SimpleSGD, getWrappedOptimizer
+from utils import Index, ShufflingBatchSampler, EvenlyDistributingSampler, SimpleSGD, createWrappedOptimizerClass
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
 
-from rnn_nets import RNNLM
+import rnn_nets
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='../data/wikisentences',
@@ -116,10 +116,10 @@ print(__BatchSampler.__name__)
 print('Shuffle training batches: ', args.shuffle_batches)
 
 ###############################################################################
-# Build the model
+# Build the model, define loss criteria and optimizer
 ###############################################################################
 ntokens = len(index)
-model = RNNLM(
+model = rnn_nets.RNNLM_dynamic(
     rnn_type = args.model, 
     ntoken = ntokens, 
     ninp = args.emsize, 
@@ -130,7 +130,7 @@ model = RNNLM(
     init_em_weights = preemb_weights, 
     train_em_weights = True).to(device)
 criterion = torch.nn.CrossEntropyLoss()
-optimizer = getWrappedOptimizer(SimpleSGD)(model.parameters(), lr =args.lr, clip = args.clip)
+optimizer = createWrappedOptimizerClass(SimpleSGD)(model.parameters(), lr =args.lr, clip = args.clip)
 print(model)
 print(criterion)
 print(optimizer)
@@ -149,24 +149,15 @@ def reshape_batch(batch_data):
     # dimensions: batch x seqlen
     x_batch, y_batch, seqlengths = batch_data
     if len(seqlengths.unique()) > 0:
-      # reorder padded sequences by size, because this is needed for pack_padded_sequence in rnn_nets.RNNLM
-      seqlengths, idx = seqlengths.sort(dim=0, descending=True)
-      # reorder and trim to longest sequence in the batch
-      x_batch = x_batch[idx,:seqlengths[0],...]
-      y_batch = y_batch[idx,:seqlengths[0],...]
-
+        # reorder padded sequences by size, because this is needed for pack_padded_sequence in rnn_nets.RNNLM
+        seqlengths, idx = seqlengths.sort(dim=0, descending=True)
+        # reorder and trim to longest sequence in the batch
+        x_batch = x_batch[idx,:seqlengths[0],...]
+        y_batch = y_batch[idx,:seqlengths[0],...]
     # reshape x_batch so seqlen is dim 0 and batch is dim 1
     x_batch = x_batch.transpose(0,1).contiguous() # switch dim 0 with dim 1
     # reshape y_batch so we get a 1d tensor of length seqlen x batch that matches with x_batch
     y_batch = y_batch.transpose(0,1).contiguous().view(-1) # switch dim 0 with dim 1 and view as 1d    
-      #####
-#        print(x_batch.size())
-#        print(y_batch.size())
-#        print('--- x')
-#        print(list(map(list, index[x_batch.tolist()])))
-#        print('--- y')
-#        print(list(index[y_batch.tolist()]))
-      #####
     return x_batch, y_batch, seqlengths
 
 def evaluate(d_loader):
@@ -184,18 +175,6 @@ def evaluate(d_loader):
             current_loss = len(data) * loss_
             total_loss += current_loss
             hidden = repackage_hidden(hidden)
-#            print('===i===\n', batch)
-#            print('===len(data)===\n', len(data))
-#            print('===loss===\n', loss_)
-#            print('===len(data) * loss_===\n', current_loss)
-#            print('===total loss===\n', total_loss)   
-#            if batch >= 10:
-#              break
-#    print('===total loss===\n', total_loss)
-#    print('===len(d_loader)===\n',len(d_loader))
-#    print('===args.bptt===\n',args.bptt)    
-#    print('===len(d_loader) * args.bptt===\n', len(d_loader) * args.bptt)
-#    print('===final loss===\n', total_loss / (len(d_loader) * args.bptt ))
     return total_loss / (len(d_loader) * args.bptt )
 
 

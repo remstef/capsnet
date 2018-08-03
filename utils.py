@@ -219,35 +219,32 @@ class SimpleSGD(torch.optim.Optimizer):
     return loss
        
           
-def getWrappedOptimizer(optimizer_clazz):
+def createWrappedOptimizerClass(optimizer_clazz):
 
-  class NewOptimizer(optimizer_clazz):
-    
+  class Wrapped(optimizer_clazz):
     def __init__(self,  *args, clip = 0.2, **kwargs):
-      super(NewOptimizer, self).__init__(*args, **kwargs)
-      self.clip = clip
-  
+      super(Wrapped, self).__init__(*args, **kwargs)
+      self.clip = clip  
     def getLearningRate(self):
       lr = [group['lr'] for group in self.param_groups]
-      return lr[0] if len(lr) == 1 else lr
-    
+      return lr[0] if len(lr) == 1 else lr    
     def adjustLearningRate(self, factor=None):
       for group in self.param_groups:
         newlr = group['lr'] * factor
-        group['lr'] = newlr
-       
+        group['lr'] = newlr       
     def step(self, closure=None):
       loss = None
       if closure is not None:
         loss = closure()
       groups = self.param_groups
       for group in groups:
-        torch.nn.utils.clip_grad_norm_(group['params'], self.clip)      
-        
-      super(NewOptimizer, self).step(None)
-      return loss
-  
-  return NewOptimizer
+        torch.nn.utils.clip_grad_norm_(group['params'], self.clip)              
+      super(Wrapped, self).step(closure=None)
+      return loss    
+    def __repr__(self):
+      return f'{optimizer_clazz.__name__}:{super(Wrapped, self).__repr__()}'  
+    
+  return Wrapped
 
       
 class SimpleRepl(object):

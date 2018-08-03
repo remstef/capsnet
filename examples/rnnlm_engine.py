@@ -14,11 +14,11 @@ import torchnet
 from tqdm import tqdm
 
 import data
-from utils import Index, EvenlyDistributingSampler, ShufflingBatchSampler, SimpleSGD, getWrappedOptimizer
+from utils import Index, EvenlyDistributingSampler, ShufflingBatchSampler, SimpleSGD, createWrappedOptimizerClass
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
 
-from rnn_nets import RNNLM
+import rnn_nets
 
 try:
 
@@ -125,7 +125,7 @@ try:
   # Build the model
   ###############################################################################
   ntokens = len(index)
-  model = RNNLM(
+  model = rnn_nets.RNNLM(
       rnn_type = args.model, 
       ntoken = ntokens, 
       ninp = args.emsize, 
@@ -136,7 +136,7 @@ try:
       init_em_weights = preemb_weights, 
       train_em_weights = True).to(device)
   criterion = torch.nn.CrossEntropyLoss()
-  optimizer = getWrappedOptimizer(torch.optim.SGD)(model.parameters(), lr = args.lr, clip = args.clip)
+  optimizer = createWrappedOptimizerClass(torch.optim.SGD)(model.parameters(), lr = args.lr, clip = args.clip)
 
   print(model)
   print(criterion)
