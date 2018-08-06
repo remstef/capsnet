@@ -187,7 +187,7 @@ def reshape_batch(batch_data):
   y_batch = y_batch.transpose(0,1).contiguous().view(-1) # switch dim 0 with dim 1 and view as 1d    
   return x_batch, y_batch, seqlengths
 
-def evaluate(args, d_loader):
+def evaluate(args, dloader):
   model = args.model
   # Turn on evaluation mode which disables dropout.
   model.eval()
@@ -195,7 +195,7 @@ def evaluate(args, d_loader):
   ntokens = len(args.index)
   hidden = model.init_hidden(args.eval_batch_size)
   with torch.no_grad():
-    for batch, batch_data in enumerate(tqdm(d_loader, ncols=89, desc = 'Test ')):
+    for batch, batch_data in enumerate(tqdm(dloader, ncols=89, desc = 'Test ')):
       data, targets, seqlengths = reshape_batch(batch_data)
       output, hidden = model(data, hidden, seqlengths)
       output_flat = output.view(-1, ntokens)
@@ -203,7 +203,7 @@ def evaluate(args, d_loader):
       current_loss = len(data) * loss_
       total_loss += current_loss
       hidden = repackage_hidden(hidden)
-  return total_loss / (len(d_loader) * args.bptt )
+  return total_loss / (len(dloader) * args.bptt )
 
 
 def train(args):
@@ -243,52 +243,53 @@ def train(args):
       total_loss = 0
       start_time = time.time()
 
-# Loop over epochs.
-best_val_loss = None
-
-# At any point you can hit Ctrl + C to break out of training early.
-try:
-
-  args = parseSystemArgs()
-  args = loadData(args)
-  args = buildModel(args)  
+if __name__ == '__main__':
+  # Loop over epochs.
+  best_val_loss = None
   
-  for epoch in range(1, args.epochs+1):
-    epoch_start_time = time.time()
-    train(args)
-    val_loss = evaluate(args.validloader)
+  # At any point you can hit Ctrl + C to break out of training early.
+  try:
+  
+    args = parseSystemArgs()
+    args = loadData(args)
+    args = buildModel(args)  
+    
+    for epoch in range(1, args.epochs+1):
+      epoch_start_time = time.time()
+      train(args)
+      val_loss = evaluate(args, args.validloader)
+      print('-' * 89)
+      print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | valid ppl {:8.2f}'.format(
+          epoch, 
+          (time.time() - epoch_start_time), 
+          val_loss, 
+          math.exp(val_loss)
+          ))
+      print('-' * 89)
+      # Save the model if the validation loss is the best we've seen so far.
+      if not best_val_loss or val_loss < best_val_loss:
+        with open(args.save, 'wb') as f:
+          torch.save(args.model, f)
+        best_val_loss = val_loss
+      else:
+          # Anneal the learning rate if no improvement has been seen in the validation dataset.
+          args.optimizer.adjustLearningRate(1. / 4.)     
+  except KeyboardInterrupt:
     print('-' * 89)
-    print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | valid ppl {:8.2f}'.format(
-        epoch, 
-        (time.time() - epoch_start_time), 
-        val_loss, 
-        math.exp(val_loss)
-        ))
-    print('-' * 89)
-    # Save the model if the validation loss is the best we've seen so far.
-    if not best_val_loss or val_loss < best_val_loss:
-      with open(args.save, 'wb') as f:
-        torch.save(args.model, f)
-      best_val_loss = val_loss
-    else:
-        # Anneal the learning rate if no improvement has been seen in the validation dataset.
-        args.optimizer.adjustLearningRate(1. / 4.)     
-except KeyboardInterrupt:
-  print('-' * 89)
-  print('Exiting from training early')
-
-# Load the best saved model.
-with open(args.save, 'rb') as f:
-  model = torch.load(f)
-  # after load the rnn params are not a continuous chunk of memory
-  # this makes them a continuous chunk, and will speed up forward pass
-  model.rnn.flatten_parameters()
-
-# Run on test data.
-#test_loss = evaluate(test_data)
-test_loss = evaluate(args.testloader)
-print('=' * 89)
-print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
-    test_loss, math.exp(test_loss)))
-print('=' * 89)
-
+    print('Exiting from training early')
+  
+  # Load the best saved model.
+  with open(args.save, 'rb') as f:
+    model = torch.load(f)
+    # after load the rnn params are not a continuous chunk of memory
+    # this makes them a continuous chunk, and will speed up forward pass
+    model.rnn.flatten_parameters()
+  
+  # Run on test data.
+  #test_loss = evaluate(test_data)
+  test_loss = evaluate(args.testloader)
+  print('=' * 89)
+  print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
+      test_loss, math.exp(test_loss)))
+  print('=' * 89)
+  
