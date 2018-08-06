@@ -97,7 +97,7 @@ if __name__ == '__main__':
           state['epoch'], 
           (time.time() - state['epoch_start_time']),
           args.optimizer.getLearningRate(),
-          '-'*(49 if args.optimizer.getLearningRate() >= 1 else 46),
+          '-'*(49 if args.optimizer.getLearningRate() >= 1 else 47),
           lrprec=2 if args.optimizer.getLearningRate() >= 1 else 5))
       print('| train loss {:5.2f} | valid loss {:5.2f} | train ppl {:8.2f} | valid ppl {:8.2f}'.format( 
           train_loss, 
