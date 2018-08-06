@@ -33,6 +33,8 @@ def parseSystemArgs():
                       help='number of layers')
   parser.add_argument('--lr', type=float, default=20,
                       help='initial learning rate')
+  parser.add_argument('--lr_decay', type=float, default=0.25,
+                      help='decay amount of learning learning rate if no validation improvement occurs')
   parser.add_argument('--clip', type=float, default=0.25,
                       help='gradient clipping')
   parser.add_argument('--epochs', type=int, default=40,
@@ -49,20 +51,20 @@ def parseSystemArgs():
                       help='random seed')
   parser.add_argument('--cuda', action='store_true',
                       help='use CUDA')
+  parser.add_argument('--log-interval', type=int, default=200, metavar='N',
+                      help='report interval')
   parser.add_argument('--shuffle_batches', action='store_true',
                       help='shuffle batches')
   parser.add_argument('--shuffle_samples', action='store_true',
                       help='shuffle samples')
-  parser.add_argument('--log-interval', type=int, default=200, metavar='N',
-                      help='report interval')
+  parser.add_argument('--sequential_sampling', action='store_true',
+                      help='use samples and batches sequentially.')
   parser.add_argument('--save', type=str, default='model.pt',
                       help='path to save the final model')
   parser.add_argument('--init_weights', type=str, default='',
                       help='path to initial embedding. emsize must match size of embedding')
   parser.add_argument('--chars', action='store_true',
                       help='use character sequences instead of token sequences')
-  parser.add_argument('--sequential_sampling', action='store_true',
-                      help='use samples and batches sequentially.')
   args = parser.parse_args()
   
   # Set the random seed manually for reproducibility.
@@ -123,6 +125,7 @@ def loadData(args):
   print('Shuffle training batches: ', args.shuffle_batches)
 
   setattr(args, 'index', index)
+  setattr(args, 'ntokens', len(index))
   setattr(args, 'trainloader', train_loader)
   setattr(args, 'testloader', test_loader)
   setattr(args, 'validloader', valid_loader)
@@ -240,16 +243,16 @@ def train(args):
       total_loss = 0
       start_time = time.time()
 
-
-args = parseSystemArgs()
-args = loadData(args)
-args = buildModel(args)  
-
 # Loop over epochs.
 best_val_loss = None
 
 # At any point you can hit Ctrl + C to break out of training early.
 try:
+
+  args = parseSystemArgs()
+  args = loadData(args)
+  args = buildModel(args)  
+  
   for epoch in range(1, args.epochs+1):
     epoch_start_time = time.time()
     train(args)
