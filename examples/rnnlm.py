@@ -287,7 +287,7 @@ if __name__ == '__main__':
   
   # Run on test data.
   #test_loss = evaluate(test_data)
-  test_loss = evaluate(args.testloader)
+  test_loss = evaluate(args, args.testloader)
   print('=' * 89)
   print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
       test_loss, math.exp(test_loss)))
