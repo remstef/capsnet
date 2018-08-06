@@ -10,7 +10,7 @@ class RNNLM(torch.nn.Module):
       self, 
       rnn_type, 
       ntoken, 
-      ninp, # == emsize
+      ninp, # = emsize
       nhid, 
       nlayers, 
       dropout=0.5, 
@@ -67,7 +67,7 @@ class RNNLM(torch.nn.Module):
       e, seqlengths_sorted, _, invidx = self.sort_padded_inputs_by_length(e, seqlengths)
       e = torch.nn.utils.rnn.pack_padded_sequence(e, seqlengths_sorted, batch_first = False) # unpad
     o, h = self.rnn(e, hidden)
-    if pack_sequences:
+    if pack_sequences: 
       # 1. unpack PackedSequence to padded sequence; 2. restore original ordering
       o, _ = torch.nn.utils.rnn.pad_packed_sequence(o, batch_first = False, total_length = inputs.size(0)) # pad again
       o = o[:,invidx,...]
@@ -79,17 +79,19 @@ class RNNLM(torch.nn.Module):
   def sort_padded_inputs_by_length(self, x, lengths):
     lengths_sorted, idx = lengths.sort(dim=0, descending=True)
     _, invidx = idx.sort() # prepare inverted index in order to restore original ordering later
-    # reorder and trim to longest sequence in the batch
-    y = x[:lengths_sorted[0],idx,...]
+    y = x[:lengths_sorted[0],idx,...] # reorder and trim to longest sequence in the batch
     return y, lengths_sorted, idx, invidx
-      
-class RNNLM_original(torch.nn.Module):
+
+'''
+taken from https://github.com/pytorch/examples/tree/master/word_language_model
+'''      
+class RNN_LM_original(torch.nn.Module):
   """Container module with an encoder, a recurrent module, and a decoder."""
   '''https://discuss.pytorch.org/t/lstm-to-bi-lstm/12967'''
 
   def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False, **ignoredkwargs):
     print('Ignored args: %s'  % ignoredkwargs)
-    super(RNNLM_original, self).__init__()
+    super(RNN_LM_original, self).__init__()
     self.drop = torch.nn.Dropout(dropout)
     self.encoder = torch.nn.Embedding(ntoken, ninp)
     if rnn_type in ['LSTM', 'GRU']:
@@ -146,25 +148,52 @@ class RNNLM_original(torch.nn.Module):
 '''
 
 '''
-class RNNLM_simple(torch.nn.Module):
+class RNN_LM_simple(torch.nn.Module):
   def __init__(self, ntoken, emsize, nhid, nlayers=1):
-    super(RNNLM_simple, self).__init__()
+    super(RNN_LM_simple, self).__init__()
     self.ntoken = ntoken
     self.emsize = emsize
     self.nhid = nhid
     self.nlayers = nlayers
 
     self.encoder = torch.nn.Embedding(ntoken, emsize)
-    self.gru = torch.nn.GRU(emsize, nhid, nlayers)
+    self.rnn = torch.nn.GRU(emsize, nhid, nlayers)
     self.decoder = torch.nn.Linear(nhid, ntoken)
 
   def forward(self, inputs, hidden):
     e = self.encoder(inputs.view(1, -1))
-    o, h = self.gru(e.view(1, 1, -1), hidden)
+    o, h = self.rnn(e.view(1, 1, -1), hidden)
     o = self.decoder(o.view(1, -1))
     return o, h
 
   def init_hidden(self):
     return torch.autograd.Variable(torch.zeros(self.nlayers, 1, self.nhid))
+  
+'''
+ taken from https://pytorch.org/tutorials/intermediate/char_rnn_classification_tutorial.html
+'''  
+class RNN_CLASSIFY_simple(torch.nn.Module):
+  
+  def __init__(self, ntokens, nhid, nclasses):
+    super(RNN_CLASSIFY_simple, self).__init__()
+    self.nhid = nhid
+    self.i2h = torch.nn.Linear(ntokens + nhid, nhid)
+    self.i2o = torch.nn.Linear(ntokens + nhid, nclasses)
+    self.softmax = torch.nn.LogSoftmax(dim=1)
+
+  def forward(self, inputs, hidden):
+    i_h = torch.cat((inputs, hidden), dim=1)
+    h = self.i2h(i_h)
+    o = self.i2o(i_h)
+    o = self.softmax(o)
+    return o, h
+
+  def initHidden(self):
+    w = next(self.parameters())
+    return w.new_zeros(1, self.nhid)
+#    return torch.zeros(1, self.hidden_size)
+  
+  
+
 
 
