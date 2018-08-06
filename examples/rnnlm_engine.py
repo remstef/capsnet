@@ -20,6 +20,7 @@ if __name__ == '__main__':
     args = rnnlm.parseSystemArgs()
     args = rnnlm.loadData(args)
     args = rnnlm.buildModel(args)  
+    model = args.model
     
     ###############################################################################
     # Set up Engine
