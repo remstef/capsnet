@@ -30,16 +30,18 @@ if __name__ == '__main__':
       global hidden
       
       x_batch, y_batch, seqlengths, is_training = batch_data
-      # reshape x and y batches so seqlen is dim 0 and batch is dim 1
-      x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
-      y_batch = y_batch.transpose(0,1)
+#      # reshape x and y batches so seqlen is dim 0 and batch is dim 1
+#      x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
+#      y_batch = y_batch.transpose(0,1)
+      
+      x_batch, y_batch, seqlengths = rnnlm.reshape_batch((x_batch,y_batch,seqlengths))
       
       hidden = rnnlm.repackage_hidden(hidden)    
       if is_training:
         model.zero_grad()
       output, hidden = model(x_batch, hidden, seqlengths)  
       output_flat = output.view(-1, args.ntokens)
-      targets_flat = y_batch.contiguous().view(-1)  
+      targets_flat = y_batch.view(-1)  
       loss = args.criterion(output_flat, targets_flat)
       return loss, output_flat
       
