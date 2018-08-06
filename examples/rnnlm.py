@@ -184,7 +184,7 @@ def reshape_batch(batch_data):
   # reshape x_batch so seqlen is dim 0 and batch is dim 1
   x_batch = x_batch.transpose(0,1)#.contiguous() # switch dim 0 with dim 1
   # reshape y_batch so we get a 1d tensor of length seqlen x batch that matches with x_batch
-  y_batch = y_batch.transpose(0,1).contiguous() # switch dim 0 with dim 1
+  y_batch = y_batch.transpose(0,1)#.contiguous() # switch dim 0 with dim 1
   return x_batch, y_batch, seqlengths
 
 def evaluate(args, dloader):
@@ -192,13 +192,12 @@ def evaluate(args, dloader):
   # Turn on evaluation mode which disables dropout.
   model.eval()
   total_loss = 0.
-  ntokens = len(args.index)
   hidden = model.init_hidden(args.eval_batch_size)
   with torch.no_grad():
     for batch, batch_data in enumerate(tqdm(dloader, ncols=89, desc = 'Test ')):
       data, targets, seqlengths = reshape_batch(batch_data)
       outputs, hidden = model(data, hidden, seqlengths)
-      outputs_flat = outputs.view(-1, ntokens)
+      outputs_flat = outputs.view(-1, args.ntokens)
       targets_flat = targets.view(-1)
       loss_ = args.criterion(outputs_flat, targets_flat).item()
       current_loss = len(data) * loss_
@@ -213,7 +212,6 @@ def train(args):
   model.train()
   total_loss = 0.
   start_time = time.time()
-  ntokens = len(args.index)
   hidden = model.init_hidden(args.batch_size)
   
   for batch, batch_data in enumerate(tqdm(args.trainloader, ncols=89, desc='train')):
@@ -222,7 +220,7 @@ def train(args):
     hidden = repackage_hidden(hidden)
     model.zero_grad()
     outputs, hidden = model(data, hidden, seqlengths)
-    outputs_flat = outputs.view(-1, ntokens)
+    outputs_flat = outputs.view(-1, args.ntokens)
     targets_flat = targets.view(-1)
     loss = args.criterion(outputs_flat, targets_flat)
     loss.backward()
