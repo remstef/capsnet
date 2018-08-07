@@ -62,7 +62,7 @@ if __name__ == '__main__':
       state['train_loss_per_interval'] += loss_val
       if state['train']:        
         t = state['t']
-        if t+1 % args.log_interval == 0:
+        if (t+1) % args.log_interval == 0:
           epoch = state['epoch']
           # maxepoch = state['maxepoch']
           t_epoch = t % len(state['iterator'])
