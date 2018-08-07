@@ -10,7 +10,7 @@ if not '..' in sys.path: sys.path.append('..')
 
 import torch
 from data import CharSequence
-from rnn_nets import SimpleRNN
+from nets.rnn import SimpleRNN
 import time
 import random
 

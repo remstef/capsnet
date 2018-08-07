@@ -1,5 +1,8 @@
 # User defined
 *.pkl
+*vocab*.txt
+*.pt
+*.onnx
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

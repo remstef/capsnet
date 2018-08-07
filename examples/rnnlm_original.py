@@ -7,7 +7,6 @@ import argparse
 import time
 import math
 import os
-import random
 import torch
 import torch.nn as nn
 import torch.onnx
@@ -15,7 +14,7 @@ import torch.onnx
 from data import TokenSequence, CharSequence
 from utils import Index
 
-from rnn_nets import RNNLM
+from nets.rnn import RNNLM_original
 
 parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='../data/wikisentences',
@@ -107,7 +106,7 @@ test_data = batchify(test_.data, eval_batch_size)
 ###############################################################################
 
 ntokens = len(index)
-model = RNNLM(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
+model = RNNLM_original(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied).to(device)
 print(model)
 criterion = nn.CrossEntropyLoss()
 print(criterion)

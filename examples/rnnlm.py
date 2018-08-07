@@ -11,11 +11,12 @@ import math
 import os
 from tqdm import tqdm
 import torch
-import data
-from utils import Index, ShufflingBatchSampler, EvenlyDistributingSampler, SimpleSGD, createWrappedOptimizerClass
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
+
+import data
+import nets.rnn
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
-import rnn_nets
+from utils import Index, ShufflingBatchSampler, EvenlyDistributingSampler, SimpleSGD, createWrappedOptimizerClass
 
 def parseSystemArgs():
   '''
@@ -135,7 +136,7 @@ def buildModel(args):
   # Build the model, define loss criteria and optimizer
   ###############################################################################
   ntokens = len(args.index)
-  model = rnn_nets.RNNLM(
+  model = nets.rnn.RNNLM(
       rnn_type = args.model, 
       ntoken = ntokens, 
       ninp = args.emsize, 
