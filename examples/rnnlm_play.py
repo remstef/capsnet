@@ -140,7 +140,10 @@ def evalfun(cmd):
     'h': lambda: commands['help'](),
     '[h]elp': lambda: commands['help'](),
     'help': lambda: 
-      print('Type a valid command or CTRL-C to quit. \nValid commands: \n  ' + '\n  '.join(list(filter(lambda k: k[0] == '(', commands.keys()))))
+      print('Type a valid command or CTRL-C to quit. \nValid commands: \n  ' + '\n  '.join(list(filter(lambda k: k[0] == '(', commands.keys())))),
+    'q': lambda: commands['quit'](),
+    '[q]quit': lambda: commands['quit'](),
+    'quit': lambda: exec('raise(KeyboardInterrupt())'),
   }
   cmdfun = commands.get(cmd, commands['help'])
   try:
