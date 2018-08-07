@@ -95,9 +95,8 @@ if __name__ == '__main__':
       model.eval()
       hidden = model.init_hidden(args.eval_batch_size)
       test_state = engine.test(process, tqdm(args.validloader, ncols=89, desc='test '))
-      nbatches = len(test_state['iterator'])
-      val_loss = test_state['test_loss'] / nbatches
-      train_loss = state['total_train_loss'] / len(state['iterator'])
+      val_loss = test_state['test_loss'] / len(test_state['iterator'])
+      train_loss = state['train_loss'] / len(state['iterator'])
       
       print('++ Epoch {:03d} took {:06.2f}s (lr {:5.{lrprec}f}) ++ {:s}'.format(
           state['epoch'], 
@@ -145,7 +144,7 @@ if __name__ == '__main__':
     model.eval()
     hidden = model.init_hidden(args.eval_batch_size)
     test_state = engine.test(process, tqdm(args.testloader, ncols=89, desc='test'))
-    test_loss = test_state['total_test_loss'] / len(test_state['iterator'])
+    test_loss = test_state['test_loss'] / len(test_state['iterator'])
     print('++ End of training ++ ' + '='*67)
     print('| test loss {:5.2f} | test ppl {:8.2f} '.format(
         test_loss, 
