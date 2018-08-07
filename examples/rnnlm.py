@@ -278,7 +278,8 @@ if __name__ == '__main__':
   
     args = parseSystemArgs()
     args = loadData(args)
-    args = buildModel(args)  
+    args = buildModel(args)
+    model = args.model
     
     for epoch in range(1, args.epochs+1):
       epoch_start_time = time.time()
