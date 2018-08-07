@@ -173,20 +173,20 @@ def repackage_hidden(h):
   else:
     return tuple(repackage_hidden(v) for v in h)
 
-def reshape_batch(batch_data):
-  # dimensions: batch x seqlen
-  x_batch, y_batch, seqlengths = batch_data
-#  if len(seqlengths.unique()) > 0:
-#    # reorder padded sequences by size, because this is needed for pack_padded_sequence in rnn_nets.RNNLM
-#    seqlengths, idx = seqlengths.sort(dim=0, descending=True)
-#    # reorder and trim to longest sequence in the batch
-#    x_batch = x_batch[idx,:seqlengths[0],...]
-#    y_batch = y_batch[idx,:seqlengths[0],...]
-  # reshape x_batch so seqlen is dim 0 and batch is dim 1
-  x_batch = x_batch.transpose(0,1)#.contiguous() # switch dim 0 with dim 1
-  # reshape y_batch so we get a 1d tensor of length seqlen x batch that matches with x_batch
-  y_batch = y_batch.transpose(0,1).contiguous() # switch dim 0 with dim 1
-  return x_batch, y_batch, seqlengths
+#def reshape_batch(batch_data):
+#  # dimensions: batch x seqlen
+#  x_batch, y_batch, seqlengths = batch_data
+##  if len(seqlengths.unique()) > 0:
+##    # reorder padded sequences by size, because this is needed for pack_padded_sequence in rnn_nets.RNNLM
+##    seqlengths, idx = seqlengths.sort(dim=0, descending=True)
+##    # reorder and trim to longest sequence in the batch
+##    x_batch = x_batch[idx,:seqlengths[0],...]
+##    y_batch = y_batch[idx,:seqlengths[0],...]
+#  # reshape x_batch so seqlen is dim 0 and batch is dim 1
+#  x_batch = x_batch.transpose(0,1)#.contiguous() # switch dim 0 with dim 1
+#  # reshape y_batch so we get a 1d tensor of length seqlen x batch that matches with x_batch
+#  y_batch = y_batch.transpose(0,1).contiguous() # switch dim 0 with dim 1
+#  return x_batch, y_batch, seqlengths
 
 def evaluate(args, dloader):
   model = args.model
@@ -196,10 +196,12 @@ def evaluate(args, dloader):
   hidden = model.init_hidden(args.eval_batch_size)
   with torch.no_grad():
     for batch, batch_data in enumerate(tqdm(dloader, ncols=89, desc = 'Test ')):
-      data, targets, seqlengths = reshape_batch(batch_data)
-      outputs, hidden = model(data, hidden, seqlengths)
+      x_batch, y_batch, seqlengths = batch_data      
+      x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
+      y_batch = y_batch.transpose(0,1).contiguous() # switch dim 0 with dim 1
+      outputs, hidden = model(x_batch, hidden, seqlengths)
       outputs_flat = outputs.view(-1, args.ntokens)
-      targets_flat = targets.view(-1)
+      targets_flat = y_batch.view(-1)
       loss_ = args.criterion(outputs_flat, targets_flat).item()
       current_loss = len(data) * loss_
       total_loss += current_loss
@@ -217,12 +219,17 @@ def train(args):
   
   for batch, batch_data in enumerate(tqdm(args.trainloader, ncols=89, desc='train')):
   
-    data, targets, seqlengths = reshape_batch(batch_data)
+#    data, targets, seqlengths = reshape_batch(batch_data)
+    
+    x_batch, y_batch, seqlengths = batch_data      
+    x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
+    y_batch = y_batch.transpose(0,1).contiguous() # switch dim 0 with dim 1
+    
     hidden = repackage_hidden(hidden)
     model.zero_grad()
     outputs, hidden = model(data, hidden, seqlengths)
     outputs_flat = outputs.view(-1, args.ntokens)
-    targets_flat = targets.view(-1)
+    targets_flat = y_batch.view(-1)
     loss = args.criterion(outputs_flat, targets_flat)
     loss.backward()
     args.optimizer.step()
