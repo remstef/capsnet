@@ -180,22 +180,25 @@ def buildModel(args):
 #  # reshape y_batch so we get a 1d tensor of length seqlen x batch that matches with x_batch
 #  y_batch = y_batch.transpose(0,1).contiguous() # switch dim 0 with dim 1
 #  return x_batch, y_batch, seqlengths
-  
-def process(batch_data):
-  
-  x_batch, y_batch, seqlengths, is_training = batch_data
-  # reshape x and y batches so seqlen is dim 0 and batch is dim 1
-  x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
-  y_batch = y_batch.transpose(0,1).contiguous()
-        
-  hidden = model.repackage_hidden(model.h)
-  if is_training:
-    model.zero_grad()
-  outputs, hidden = model(x_batch, hidden, seqlengths)  
-  outputs_flat = outputs.view(-1, args.ntokens)
-  targets_flat = y_batch.view(-1)  
-  loss = args.criterion(outputs_flat, targets_flat)
-  return loss, outputs_flat
+
+def getprocessfun(args):
+  model = args.model
+  def process(batch_data):
+    
+    x_batch, y_batch, seqlengths, is_training = batch_data
+    # reshape x and y batches so seqlen is dim 0 and batch is dim 1
+    x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
+    y_batch = y_batch.transpose(0,1).contiguous()
+          
+    hidden = model.repackage_hidden(model.h)
+    if is_training:
+      model.zero_grad()
+    outputs, hidden = model(x_batch, hidden, seqlengths)  
+    outputs_flat = outputs.view(-1, args.ntokens)
+    targets_flat = y_batch.view(-1)  
+    loss = args.criterion(outputs_flat, targets_flat)
+    return loss, outputs_flat
+  return process
 
 def evaluate(args, dloader):
   model = args.model
@@ -279,7 +282,7 @@ if __name__ == '__main__':
     args = parseSystemArgs()
     args = loadData(args)
     args = buildModel(args)
-    model = args.model
+    process = getprocessfun(args)
     
     for epoch in range(1, args.epochs+1):
       epoch_start_time = time.time()
