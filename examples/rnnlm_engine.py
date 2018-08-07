@@ -23,7 +23,6 @@ if __name__ == '__main__':
     process = rnnlm.getprocessfun(args)
     model = args.model
 
-    
     ###############################################################################
     # Set up Engine
     ###############################################################################
@@ -64,7 +63,6 @@ if __name__ == '__main__':
               cur_loss, 
               math.exp(cur_loss)
               ))
-          # todo check if you should rather define a new variable
           state['train_loss_per_interval'] = 0.
       
     def on_start_epoch(state):

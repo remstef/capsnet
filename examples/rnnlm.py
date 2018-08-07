@@ -166,21 +166,6 @@ def buildModel(args):
 # Training code
 ###############################################################################
 
-#def reshape_batch(batch_data):
-#  # dimensions: batch x seqlen
-#  x_batch, y_batch, seqlengths = batch_data
-##  if len(seqlengths.unique()) > 0:
-##    # reorder padded sequences by size, because this is needed for pack_padded_sequence in rnn_nets.RNNLM
-##    seqlengths, idx = seqlengths.sort(dim=0, descending=True)
-##    # reorder and trim to longest sequence in the batch
-##    x_batch = x_batch[idx,:seqlengths[0],...]
-##    y_batch = y_batch[idx,:seqlengths[0],...]
-#  # reshape x_batch so seqlen is dim 0 and batch is dim 1
-#  x_batch = x_batch.transpose(0,1)#.contiguous() # switch dim 0 with dim 1
-#  # reshape y_batch so we get a 1d tensor of length seqlen x batch that matches with x_batch
-#  y_batch = y_batch.transpose(0,1).contiguous() # switch dim 0 with dim 1
-#  return x_batch, y_batch, seqlengths
-
 def getprocessfun(args):
   model = args.model
   def process(batch_data):
@@ -207,23 +192,12 @@ def evaluate(args, dloader):
   total_loss = 0.
   model.h = model.init_hidden(args.eval_batch_size)
   with torch.no_grad():
-    for batch, batch_data in enumerate(tqdm(dloader, ncols=89, desc = 'Test ')):
-      
-      batch_data.append(False)
-      
-      loss, outputs_flat = process(batch_data)
-      
-#      x_batch, y_batch, seqlengths = batch_data      
-#      x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
-#      y_batch = y_batch.transpose(0,1).contiguous() # switch dim 0 with dim 1
-#      outputs, hidden= model(x_batch, model.h, seqlengths)
-#      outputs_flat = outputs.view(-1, args.ntokens)
-#      targets_flat = y_batch.view(-1)
-#      loss_ = args.criterion(outputs_flat, targets_flat).item()
+    for batch, batch_data in enumerate(tqdm(dloader, ncols=89, desc = 'Test ')):   
+      batch_data.append(False)    
+      loss, outputs_flat = process(batch_data)    
       loss_ = loss.item()
       current_loss = args.eval_batch_size * loss_
       total_loss += current_loss
-#      model.h = model.repackage_hidden(hidden)
   return total_loss / (len(dloader) * args.eval_batch_size )
 
 
@@ -238,23 +212,10 @@ def train(args):
   for batch, batch_data in enumerate(tqdm(args.trainloader, ncols=89, desc='train')):
     
     batch_data.append(True)
-  
-#    data, targets, seqlengths = reshape_batch(batch_data)
-    
-#    x_batch, y_batch, seqlengths = batch_data      
-#    x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
-#    y_batch = y_batch.transpose(0,1).contiguous() # switch dim 0 with dim 1
-#    
-#    hidden = model.repackage_hidden(model.h)
     model.zero_grad()
-#    outputs, hidden = model(x_batch, hidden, seqlengths)
-#    outputs_flat = outputs.view(-1, args.ntokens)
-#    targets_flat = y_batch.view(-1)
-#    loss = args.criterion(outputs_flat, targets_flat)
     loss, outputs_flat = process(batch_data)
     loss.backward()
     args.optimizer.step()
-
     total_loss += loss.item()
 
     if batch % args.log_interval == 0 and batch > 0:
@@ -304,22 +265,23 @@ if __name__ == '__main__':
       else:
           # Anneal the learning rate if no improvement has been seen in the validation dataset.
           args.optimizer.adjustLearningRate(1. / 4.)     
+
+  
+    # Load the best saved model.
+    with open(args.save, 'rb') as f:
+      model = torch.load(f)
+      # after load the rnn params are not a continuous chunk of memory
+      # this makes them a continuous chunk, and will speed up forward pass
+      model.rnn.flatten_parameters()
+    
+    # Run on test data.
+    #test_loss = evaluate(test_data)
+    test_loss = evaluate(args, args.testloader)
+    print('=' * 89)
+    print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
+        test_loss, math.exp(test_loss)))
+    print('=' * 89)
+
   except KeyboardInterrupt:
     print('-' * 89)
-    print('Exiting from training early')
-  
-  # Load the best saved model.
-  with open(args.save, 'rb') as f:
-    model = torch.load(f)
-    # after load the rnn params are not a continuous chunk of memory
-    # this makes them a continuous chunk, and will speed up forward pass
-    model.rnn.flatten_parameters()
-  
-  # Run on test data.
-  #test_loss = evaluate(test_data)
-  test_loss = evaluate(args, args.testloader)
-  print('=' * 89)
-  print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
-      test_loss, math.exp(test_loss)))
-  print('=' * 89)
-  
+    print('Exiting from training early')  
