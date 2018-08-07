@@ -89,7 +89,7 @@ class CharSequence(FixedLengthSequenceDataset):
     assert os.path.exists(self.file)    
     with open(self.file, 'r', encoding='utf8') as f:
       charsequence = f.read()
-    sequence = torch.LongTensor(list(map(lambda c: self.index.add(c), charsequence)))
+    sequence = torch.LongTensor(list(map(lambda c: self.index.add(c.strip()), charsequence)))
     del charsequence
     return sequence
     
@@ -114,7 +114,7 @@ class TokenSequence(FixedLengthSequenceDataset):
     with open(self.file, 'r', encoding='utf8') as f:
       for i, line in enumerate(f):
         for w in line.split() + ['<eos>']:
-          data_.append(self.index.add(w))
+          data_.append(self.index.add(w.strip()))
     data = torch.LongTensor(data_)
     del data_
     return data
@@ -174,7 +174,7 @@ class SemEval2010(torch.utils.data.Dataset):
 
     # load processed messages
     self.samples = pandas.read_pickle(processed_file)
-    self.samples['sentence_tensor'] = self.samples.spacy.apply(lambda doc: torch.LongTensor([self.index.add(t.text) for t in doc]))
+    self.samples['sentence_tensor'] = self.samples.spacy.apply(lambda doc: torch.LongTensor([self.index.add(t.text.strip()) for t in doc]))
     self.samples['sentence_tensor'] = self.samples.sentence_tensor.apply(lambda t: torch.cat((t,torch.LongTensor([self.index.add('<eos>')])),0))    
     self.samples['sentence_length'] = self.samples.sentence_tensor.apply(lambda t: t.size(0))
     maxlength = self.samples.sentence_length.max()
