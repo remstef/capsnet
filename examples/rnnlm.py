@@ -19,6 +19,7 @@ import rnn_nets
 
 def parseSystemArgs():
   '''
+  
   '''
   parser = argparse.ArgumentParser(description='PyTorch Wikitext-2 RNN/LSTM Language Model')
   parser.add_argument('--data', type=str, default='../data/wikisentences',
@@ -86,10 +87,10 @@ def loadData(args):
   __SequenceDataset = data.CharSequence if args.chars else data.TokenSequence
   print(__SequenceDataset.__name__)
   index = Index(initwords = ['<unk>'], unkindex = 0)
-  #train_ = __SequenceDataset(args.data, subset='train.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
-  #index.freeze(silent = True).tofile(os.path.join(args.data, 'vocab_chars.txt' if args.chars else 'vocab_tokens.txt'))
-  #test_ = __SequenceDataset(args.data, subset='test.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
-  #valid_ = __SequenceDataset(args.data, subset='valid.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(device)
+#  train_ = __SequenceDataset(args.data, subset='train.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(args.device)
+#  index.freeze(silent = True).tofile(os.path.join(args.data, 'vocab_chars.txt' if args.chars else 'vocab_tokens.txt'))
+#  test_ = __SequenceDataset(args.data, subset='test.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(args.device)
+#  valid_ = __SequenceDataset(args.data, subset='valid.txt', index = index, seqlen = args.bptt, skip = args.bptt).to(args.device)
   
   train_ = data.SemEval2010('../data/semeval2010/', subset='train.txt', index = index).to(args.device)
   index.freeze(silent = True).tofile(os.path.join('../data/semeval2010/', 'vocab_chars.txt' if args.chars else 'vocab_tokens.txt'))
