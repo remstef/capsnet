@@ -115,7 +115,7 @@ if __name__ == '__main__':
     # run training
     ###############################################################################
     
-    final_state = engine.train(process, args.trainloader, maxepoch=args.epochs, optimizer=args.optimizer)
+    final_state = engine.train(rnnlm.process, args.trainloader, maxepoch=args.epochs, optimizer=args.optimizer)
     
     # Load the best saved model.
     with open(args.save, 'rb') as f:
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     # Run on test data.
     model.eval()
     model.h = model.init_hidden(args.eval_batch_size)
-    test_state = engine.test(process, tqdm(args.testloader, ncols=89, desc='test'))
+    test_state = engine.test(rnnlm.process, tqdm(args.testloader, ncols=89, desc='test'))
     test_loss = test_state['test_loss'] / len(test_state['iterator'])
     print('++ End of training ++ ' + '='*67)
     print('| test loss {:5.2f} | test ppl {:8.2f} '.format(
