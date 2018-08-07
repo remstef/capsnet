@@ -25,23 +25,7 @@ if __name__ == '__main__':
     ###############################################################################
     # Set up Engine
     ###############################################################################
-    
-    def process(batch_data):
-      
-      x_batch, y_batch, seqlengths, is_training = batch_data
-      # reshape x and y batches so seqlen is dim 0 and batch is dim 1
-      x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
-      y_batch = y_batch.transpose(0,1).contiguous()
-            
-      hidden = model.repackage_hidden(model.h)
-      if is_training:
-        model.zero_grad()
-      outputs, hidden = model(x_batch, hidden, seqlengths)  
-      outputs_flat = outputs.view(-1, args.ntokens)
-      targets_flat = y_batch.view(-1)  
-      loss = args.criterion(outputs_flat, targets_flat)
-      return loss, outputs_flat
-      
+          
     def on_start(state):
       state['train_loss'] = 0.
       state['test_loss'] = 0.
@@ -92,7 +76,7 @@ if __name__ == '__main__':
     def on_end_epoch(state):
       model.eval()
       model.h = model.init_hidden(args.eval_batch_size)
-      test_state = engine.test(process, tqdm(args.validloader, ncols=89, desc='test '))
+      test_state = engine.test(rnnlm.process, tqdm(args.validloader, ncols=89, desc='test '))
       val_loss = test_state['test_loss'] / len(test_state['iterator'])
       train_loss = state['train_loss'] / len(state['iterator'])
       
