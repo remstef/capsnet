@@ -63,7 +63,7 @@ if __name__ == '__main__':
       if state['train']:        
         t = state['t']
         t_epoch = t % len(state['iterator'])
-        if t % args.log_interval == 0 and t_epoch > 0:
+        if t_epoch % args.log_interval == 0 and t_epoch > 0:
           epoch = state['epoch']
           # maxepoch = state['maxepoch']
           t_epoch = t % len(state['iterator'])
