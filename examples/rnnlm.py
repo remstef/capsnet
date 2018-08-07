@@ -206,7 +206,7 @@ def evaluate(args, dloader):
       current_loss = x_batch.size(1) * loss_
       total_loss += current_loss
       hidden = repackage_hidden(hidden)
-  return total_loss / (len(dloader) * args.bptt )
+  return total_loss / (len(dloader) * args.eval_batch_size )
 
 
 def train(args):
