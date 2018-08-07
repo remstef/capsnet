@@ -54,7 +54,7 @@ def load(mfile, ifile):
   print('Loading index', file=sys.stderr)
   index = Index.fromfile(ifile).freeze()
   print('Loading embedding', file=sys.stderr)
-  emb = Embedding(model.encoder.weight.detach().numpy(), index, normalize = False)
+  emb = Embedding(model.encoder.weight.detach(), index, normalize = False)
   return model, index, emb
 
 def generate(start = '<eos>', seqlen = 35, fout = sys.stdout):
