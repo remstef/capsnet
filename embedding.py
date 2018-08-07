@@ -15,7 +15,7 @@ from utils import Index
 class Embedding(object):
   
   def __init__(self, weights, index, normalize = False):
-    assert weights.shape[0] == len(index)
+    assert weights.shape[0] == len(index), f'expected {weights.shape[0]:d} but got {len(index):d}. Weights: {weights.shape:s}'
     self.normalize = normalize
     self.vdim = weights.shape[1]
     self.index = index
