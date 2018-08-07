@@ -203,7 +203,7 @@ def evaluate(args, dloader):
       outputs_flat = outputs.view(-1, args.ntokens)
       targets_flat = y_batch.view(-1)
       loss_ = args.criterion(outputs_flat, targets_flat).item()
-      current_loss = len(data) * loss_
+      current_loss = x_batch.size(1) * loss_
       total_loss += current_loss
       hidden = repackage_hidden(hidden)
   return total_loss / (len(dloader) * args.bptt )
@@ -227,7 +227,7 @@ def train(args):
     
     hidden = repackage_hidden(hidden)
     model.zero_grad()
-    outputs, hidden = model(data, hidden, seqlengths)
+    outputs, hidden = model(x_batch, hidden, seqlengths)
     outputs_flat = outputs.view(-1, args.ntokens)
     targets_flat = y_batch.view(-1)
     loss = args.criterion(outputs_flat, targets_flat)
