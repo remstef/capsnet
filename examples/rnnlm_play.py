@@ -116,18 +116,21 @@ def save_model(fname, tocpu=True, onnxformat=False):
 def evalfun(cmd):
   commands = {
     'g': lambda: commands['generate'](),
+    '(g)enerate': lambda: commands['generate'](),
     'generate': lambda: 
       generate(
           start = input('Type start word: '), 
           seqlen = int(input('Type sequence length: '))
           ),
     'n': lambda: commands['neighbors'](),
+    '(n)neighbors': lambda: commands['neighbors'](),
     'neighbors': lambda:
       nearest_neighbors(
           word = input('Type word: '), 
           numneighbors = int(input('Type number of nearest neighbors: '))
           ),
     's': lambda: commands['savemodel'](),
+    '(s)savemodel': lambda: commands['savemodel'](),
     'savemodel': lambda:
       save_model(
           fname = input('Type filename: '), 
@@ -135,8 +138,9 @@ def evalfun(cmd):
           onnxformat = 'yes' == str.lower(str.strip(input('Type yes if the model should be saved in onnx format (default: no):')))
           ),
     'h': lambda: commands['help'](),
+    '(h)help': lambda: commands['help'](),
     'help': lambda: 
-      print('Type a valid command or CTRL-C to quit. \nValid commands: \n  ' + '\n  '.join(list(filter(lambda k: len(k) > 1, commands.keys()))))
+      print('Type a valid command or CTRL-C to quit. \nValid commands: \n  ' + '\n  '.join(list(filter(lambda k: k[0] == '(', commands.keys()))))
   }
   cmdfun = commands.get(cmd, commands['help'])
   try:
