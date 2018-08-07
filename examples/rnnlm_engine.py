@@ -69,9 +69,10 @@ if __name__ == '__main__':
           t_epoch = t % len(state['iterator'])
           cur_loss = state['train_loss_per_interval'] / args.log_interval
           elapsed = time.time() - state['batch_start_time']
-          tqdm.write('| epoch {:3d} | batch {:5d} | lr {:02.2f} | ms/batch {:5.2f} | loss {:5.2f} | ppl {:8.2f}'.format(
+          tqdm.write('| epoch {:3d} | batch {:5d}/{:5d} | lr {:02.2f} | ms/batch {:5.2f} | loss {:5.2f} | ppl {:8.2f}'.format(
               epoch, 
-              t_epoch, 
+              t_epoch,
+              len(state['iterator']),
               args.optimizer.getLearningRate(),
               (elapsed * 1000) / args.log_interval, 
               cur_loss, 
