@@ -166,13 +166,6 @@ def buildModel(args):
 # Training code
 ###############################################################################
 
-def repackage_hidden(h):
-  '''Wraps hidden states in new Tensors, to detach them from their history.'''
-  if isinstance(h, torch.Tensor):
-    return h.detach()
-  else:
-    return tuple(repackage_hidden(v) for v in h)
-
 #def reshape_batch(batch_data):
 #  # dimensions: batch x seqlen
 #  x_batch, y_batch, seqlengths = batch_data
@@ -193,19 +186,22 @@ def evaluate(args, dloader):
   # Turn on evaluation mode which disables dropout.
   model.eval()
   total_loss = 0.
-  hidden = model.init_hidden(args.eval_batch_size)
+  model.h = model.init_hidden(args.eval_batch_size)
   with torch.no_grad():
     for batch, batch_data in enumerate(tqdm(dloader, ncols=89, desc = 'Test ')):
+      
+      
+      
       x_batch, y_batch, seqlengths = batch_data      
       x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
       y_batch = y_batch.transpose(0,1).contiguous() # switch dim 0 with dim 1
-      outputs, hidden = model(x_batch, hidden, seqlengths)
+      outputs, hidden= model(x_batch, model.h, seqlengths)
       outputs_flat = outputs.view(-1, args.ntokens)
       targets_flat = y_batch.view(-1)
       loss_ = args.criterion(outputs_flat, targets_flat).item()
       current_loss = x_batch.size(1) * loss_
       total_loss += current_loss
-      hidden = repackage_hidden(hidden)
+      model.h = model.repackage_hidden(hidden)
   return total_loss / (len(dloader) * args.eval_batch_size )
 
 
@@ -215,7 +211,7 @@ def train(args):
   model.train()
   total_loss = 0.
   start_time = time.time()
-  hidden = model.init_hidden(args.batch_size)
+  model.h = model.init_hidden(args.batch_size)
   
   for batch, batch_data in enumerate(tqdm(args.trainloader, ncols=89, desc='train')):
   
@@ -225,7 +221,7 @@ def train(args):
     x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
     y_batch = y_batch.transpose(0,1).contiguous() # switch dim 0 with dim 1
     
-    hidden = repackage_hidden(hidden)
+    hidden = model.repackage_hidden(model.h)
     model.zero_grad()
     outputs, hidden = model(x_batch, hidden, seqlengths)
     outputs_flat = outputs.view(-1, args.ntokens)

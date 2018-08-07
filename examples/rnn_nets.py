@@ -36,6 +36,7 @@ class RNNLM(torch.nn.Module):
     self.rnn_type = rnn_type
     self.nhid = nhid
     self.nlayers = nlayers
+    self.h = None # keep a reference to hidden states
 
   def init_weights(self, w = None, trainable = True):
     initrange = 0.1
@@ -52,10 +53,24 @@ class RNNLM(torch.nn.Module):
   def init_hidden(self, bsz):
     w = next(self.parameters())
     if self.rnn_type == 'LSTM':
-      return (w.new_zeros(self.nlayers, bsz, self.nhid),
-              w.new_zeros(self.nlayers, bsz, self.nhid))
+      self.h = (w.new_zeros(self.nlayers, bsz, self.nhid),
+                w.new_zeros(self.nlayers, bsz, self.nhid))
     else:
-      return w.new_zeros(self.nlayers, bsz, self.nhid)
+      self.h = w.new_zeros(self.nlayers, bsz, self.nhid)   
+    return self.h
+    
+  def repackage_hidden(self, h):
+    '''Wraps hidden states in new Tensors, to detach them from their history.'''
+    if isinstance(h, torch.Tensor):
+      return h.detach()
+    else:
+      return tuple(self.repackage_hidden(v) for v in h)
+    
+  def sort_padded_inputs_by_length(self, x, lengths):
+    lengths_sorted, idx = lengths.sort(dim=0, descending=True)
+    _, invidx = idx.sort() # prepare inverted index in order to restore original ordering later
+    y = x[:lengths_sorted[0],idx,...] # reorder and trim to longest sequence in the batch
+    return y, lengths_sorted, idx, invidx
 
   def forward(self, inputs, hidden, seqlengths = None):
     # inputs.size() should be = seq_len, batch_size, feature_size (1 = word index)
@@ -66,7 +81,7 @@ class RNNLM(torch.nn.Module):
       # 1. sort sequences by length; 2. create a PackedSequence from the padded sequences
       e, seqlengths_sorted, _, invidx = self.sort_padded_inputs_by_length(e, seqlengths)
       e = torch.nn.utils.rnn.pack_padded_sequence(e, seqlengths_sorted, batch_first = False) # unpad
-    o, h = self.rnn(e, hidden)
+    o, self.h = self.rnn(e, hidden)
     if pack_sequences: 
       # 1. unpack PackedSequence to padded sequence; 2. restore original ordering
       o, _ = torch.nn.utils.rnn.pad_packed_sequence(o, batch_first = False, total_length = inputs.size(0)) # pad again
@@ -74,13 +89,7 @@ class RNNLM(torch.nn.Module):
     o = self.drop(o)
     d = self.decoder(o.view(o.size(0)*o.size(1), o.size(2)))
     d = d.view(o.size(0), o.size(1), d.size(1))
-    return d, h
-
-  def sort_padded_inputs_by_length(self, x, lengths):
-    lengths_sorted, idx = lengths.sort(dim=0, descending=True)
-    _, invidx = idx.sort() # prepare inverted index in order to restore original ordering later
-    y = x[:lengths_sorted[0],idx,...] # reorder and trim to longest sequence in the batch
-    return y, lengths_sorted, idx, invidx
+    return d, self.h
 
 '''
 taken from https://github.com/pytorch/examples/tree/master/word_language_model
