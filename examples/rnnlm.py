@@ -221,7 +221,7 @@ def train(args):
     if batch % args.log_interval == 0 and batch > 0:
       cur_loss = total_loss / args.log_interval
       elapsed = time.time() - start_time
-      tqdm.write('| epoch {:3d} | {:5d} / {:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | loss {:5.2f} | ppl {:8.2f}'.format(
+      tqdm.write('| epoch {:3d} | batch {:5d} / {:5d} | lr {:02.2f} | ms/batch {:5.2f} | loss {:5.2f} | ppl {:8.2f}'.format(
           epoch, 
           batch, 
           len(args.trainloader), 
