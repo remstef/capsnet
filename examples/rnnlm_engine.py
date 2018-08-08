@@ -32,16 +32,22 @@ if __name__ == '__main__':
       state['test_loss'] = 0.
       state['train_loss_per_interval'] = 0.
       state['best_val_loss'] = sys.maxsize
+      if state['train']:
+        state['hidden'] = model.init_hidden(args.batch_size)
+      else:
+        state['hidden'] = model.init_hidden(args.eval_batch_size)
     
     def on_end(state):
       pass
       
     def on_sample(state):
+      state['sample'].append(state['hidden'])
       state['sample'].append(state['train'])
       state['batch_start_time'] = time.time()
       
     def on_forward(state):
       loss_val = state['loss'].item()
+      _, state['hidden'] = state['output']
       state['train_loss'] += loss_val
       state['test_loss'] += loss_val
       state['train_loss_per_interval'] += loss_val
@@ -70,12 +76,11 @@ if __name__ == '__main__':
       state['train_loss'] = 0.
       state['train_loss_per_interval'] = 0.      
       model.train()
-      model.h = model.init_hidden(args.batch_size)
+      state['hidden'] = model.init_hidden(args.batch_size)
       state['iterator'] = tqdm(state['iterator'], ncols=89, desc='train')
     
     def on_end_epoch(state):
       model.eval()
-      model.h = model.init_hidden(args.eval_batch_size)
       test_state = engine.test(process, tqdm(args.validloader, ncols=89, desc='test '))
       val_loss = test_state['test_loss'] / len(test_state['iterator'])
       train_loss = state['train_loss'] / len(state['iterator'])
@@ -124,7 +129,6 @@ if __name__ == '__main__':
     
     # Run on test data.
     model.eval()
-    model.h = model.init_hidden(args.eval_batch_size)
     test_state = engine.test(process, tqdm(args.testloader, ncols=89, desc='test'))
     test_loss = test_state['test_loss'] / len(test_state['iterator'])
     print('++ End of training ++ ' + '='*67)

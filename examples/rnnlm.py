@@ -178,7 +178,7 @@ def getprocessfun(args):
     outputs_flat = outputs.view(-1, args.ntokens)
     targets_flat = y_batch.view(-1)  
     loss = args.criterion(outputs_flat, targets_flat)
-    return loss, outputs_flat
+    return loss, (outputs_flat, hidden)
   return process
 
 def evaluate(args, dloader):
@@ -191,7 +191,7 @@ def evaluate(args, dloader):
     for batch, batch_data in enumerate(tqdm(dloader, ncols=89, desc = 'Test ')):   
       batch_data.append(hidden)
       batch_data.append(False)
-      loss, outputs_flat = process(batch_data)    
+      loss, (outputs_flat, hidden) = process(batch_data)    
       loss_ = loss.item()
       current_loss = args.eval_batch_size * loss_
       total_loss += current_loss
