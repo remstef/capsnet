@@ -174,40 +174,48 @@ class SemEval2010(torch.utils.data.Dataset):
 
     # load processed messages
     self.samples = pandas.read_pickle(processed_file)
-    self.samples['sentence_tensor'] = self.samples.spacy.apply(lambda doc: torch.LongTensor([self.index.add(t.text.strip()) for t in doc]))
-    self.samples['sentence_tensor'] = self.samples.sentence_tensor.apply(lambda t: torch.cat((t,torch.LongTensor([self.index.add('<eos>')])),0))    
+    self.samples['sentence_tensor'] = self.samples.spacy.apply(lambda doc: torch.Tensor([self.index.add(t.text.strip()) for t in doc]))
+    self.samples['sentence_tensor'] = self.samples.sentence_tensor.apply(lambda t: torch.cat((t,torch.Tensor([self.index.add('<eos>')])),0))    
     self.samples['sentence_length'] = self.samples.sentence_tensor.apply(lambda t: t.size(0))
     maxlength = self.samples.sentence_length.max()
     pad_val = self.index.add('<pad>')
     self.samples['sentence_tensor_padded'] = self.samples.sentence_tensor.apply(lambda t: self.pad(t, maxlength, pad_val))
+    self.samples['labelid'] = self.samples.label.apply(lambda lbl: self.classindex.add(lbl.strip()))
 
-    self.data = torch.stack(self.samples.sentence_tensor_padded.tolist())
+    self.sequences = torch.stack(self.samples.sentence_tensor_padded.tolist())
+    self.sequencelengts = torch.Tensor(self.samples.sentence_length.tolist())
+    self.labels = torch.Tensor(self.samples.labelid.tolist())
+    
+    del self.samples
+    
     return True
   
   def __len__(self):
-    return self.data.size(0)
+    return self.labels.size(0)
 
   def __getitem__(self, index):
-    seq = self.data[index]
-    x = seq[:-1]
-    y = seq[1:]
-    l = self.samples.sentence_length.iloc[index] - 1
+    x = self.sequences[index]
+    l = self.sequencelengts[index]
+    y = self.labels[index]
     return x, y, l
   
   def pad(self, x, length, padding_value):
-    y = torch.ones((length,)).long() * padding_value
+    y = torch.ones((length,)) * padding_value
     y[:len(x)] = x
     return y
+
+  def cpu(self):
+    return self.to(torch.device('cpu'))
   
   def cuda(self):
-      self.data = self.data.cuda()
-      return self
+    return self.to(torch.device('cuda'))
   
   def to(self, device):
-    self.data = self.data.to(device)
+    self.sequences = self.sequences.to(device)
+    self.sequencelengts = self.sequencelengts.to(device)
+    self.labels = self.labels.to(device)
     return self
   
-
 
 class SpamDataset(torch.utils.data.Dataset):
 

@@ -183,11 +183,11 @@ class RNN_LM_simple(torch.nn.Module):
 '''  
 class RNN_CLASSIFY_simple(torch.nn.Module):
   
-  def __init__(self, ntokens, nhid, nclasses):
+  def __init__(self, ntoken, nhid, nclasses):
     super(RNN_CLASSIFY_simple, self).__init__()
     self.nhid = nhid
-    self.i2h = torch.nn.Linear(ntokens + nhid, nhid)
-    self.i2o = torch.nn.Linear(ntokens + nhid, nclasses)
+    self.i2h = torch.nn.Linear(ntoken + nhid, nhid)
+    self.i2o = torch.nn.Linear(ntoken + nhid, nclasses)
     self.softmax = torch.nn.LogSoftmax(dim=1)
 
   def forward(self, inputs, hidden):
@@ -197,10 +197,12 @@ class RNN_CLASSIFY_simple(torch.nn.Module):
     o = self.softmax(o)
     return o, h
 
-  def initHidden(self):
-    w = next(self.parameters())
-    return w.new_zeros(1, self.nhid)
+  def init_hidden(self, batch_size):
+#    w = next(self.parameters())
+#    return w.new_zeros(1, self.nhid)
 #    return torch.zeros(1, self.hidden_size)
+    w = next(self.parameters())
+    return w.new_zeros(1, batch_size, self.nhid)
   
   
 
