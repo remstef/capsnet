@@ -135,7 +135,7 @@ def getprocessfun(args):
   def process(batch_data):
     x_batch, y_batch, seqlengths, hidden_before, is_training = batch_data
     x_batch_one_hot = makeOneHot(x_batch, args.ntoken)
-    x_batch_one_hot = x_batch_one_hot.transpose(0,1) # switch dim 0 with dim 1 => x_batch_one_hot = seqlen x batch x ntoken
+    x_batch_one_hot = x_batch_one_hot.transpose(0,1).to(args.device) # switch dim 0 with dim 1 => x_batch_one_hot = seqlen x batch x ntoken
 
     hidden = model.init_hidden(x_batch_one_hot.size(1))
 
