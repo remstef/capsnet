@@ -216,7 +216,7 @@ if __name__ == '__main__':
     
     def on_end_epoch(state):
       model.eval()
-      test_state = engine.test(process, tqdm(args.validloader, ncols=89, desc='test '))
+      test_state = engine.test(process, tqdm(args.testloader, ncols=89, desc='test '))
       val_loss = test_state['test_loss'] / len(test_state['iterator'])
       train_loss = state['train_loss'] / len(state['iterator'])
       
