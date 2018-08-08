@@ -222,7 +222,7 @@ if __name__ == '__main__':
       
       print('''\
 ++ Epoch {:03d} took {:06.2f}s (lr {:5.{lrprec}f}) ++ {:s}
-| train loss {:5.2f} | valid loss {:5.2f} | train ppl {:8.2f} | valid ppl {:8.2f}
+| train loss {:5.2f} | valid loss {:5.2f}
 {:s}\
 '''.format(
           state['epoch'], 
@@ -231,8 +231,6 @@ if __name__ == '__main__':
           '-'*(49 if args.optimizer.getLearningRate() >= 1 else 47),
           train_loss, 
           val_loss,
-          math.exp(train_loss),
-          math.exp(val_loss),
           '-' * 89,
           lrprec=2 if args.optimizer.getLearningRate() >= 1 else 5))
   
