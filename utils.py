@@ -246,6 +246,16 @@ def createWrappedOptimizerClass(optimizer_clazz):
     
   return Wrapped
 
+def makeOneHot(X, ntoken):
+  # X = batch_size x seq
+  batch_size, seqlen = X.size()
+  X_one_hot = torch.zeros(batch_size, seqlen , ntoken)
+  X_one_hot.scatter_(2, X.unsqueeze(2), 1.)
+  return X_one_hot
+
+def makeBow(X_one_hot):
+   X_bow = X_one_hot.sum(dim=1)
+   return X_bow
       
 class SimpleRepl(object):
   def __init__(self, evaluator=lambda cmd: print("You entered '%s'." % cmd), PS1 = '>> '):

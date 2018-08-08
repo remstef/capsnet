@@ -174,17 +174,17 @@ class SemEval2010(torch.utils.data.Dataset):
 
     # load processed messages
     self.samples = pandas.read_pickle(processed_file)
-    self.samples['sentence_tensor'] = self.samples.spacy.apply(lambda doc: torch.Tensor([self.index.add(t.text.strip()) for t in doc]))
-    self.samples['sentence_tensor'] = self.samples.sentence_tensor.apply(lambda t: torch.cat((t,torch.Tensor([self.index.add('<eos>')])),0))    
+    self.samples['sentence_tensor'] = self.samples.spacy.apply(lambda doc: torch.LongTensor([self.index.add(t.text.strip()) for t in doc]))
+    self.samples['sentence_tensor'] = self.samples.sentence_tensor.apply(lambda t: torch.cat((t,torch.LongTensor([self.index.add('<eos>')])),0))    
     self.samples['sentence_length'] = self.samples.sentence_tensor.apply(lambda t: t.size(0))
-    maxlength = self.samples.sentence_length.max()
+    self.maxseqlen = self.samples.sentence_length.max()
     pad_val = self.index.add('<pad>')
-    self.samples['sentence_tensor_padded'] = self.samples.sentence_tensor.apply(lambda t: self.pad(t, maxlength, pad_val))
+    self.samples['sentence_tensor_padded'] = self.samples.sentence_tensor.apply(lambda t: self.pad(t, self.maxseqlen, pad_val))
     self.samples['labelid'] = self.samples.label.apply(lambda lbl: self.classindex.add(lbl.strip()))
 
     self.sequences = torch.stack(self.samples.sentence_tensor_padded.tolist())
-    self.sequencelengts = torch.Tensor(self.samples.sentence_length.tolist())
-    self.labels = torch.Tensor(self.samples.labelid.tolist())
+    self.sequencelengts = torch.LongTensor(self.samples.sentence_length.tolist())
+    self.labels = torch.LongTensor(self.samples.labelid.tolist())
     
     del self.samples
     
@@ -200,7 +200,7 @@ class SemEval2010(torch.utils.data.Dataset):
     return x, y, l
   
   def pad(self, x, length, padding_value):
-    y = torch.ones((length,)) * padding_value
+    y = torch.ones((length,)).long() * padding_value
     y[:len(x)] = x
     return y
 

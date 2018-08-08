@@ -19,7 +19,7 @@ import torchnet
 import data
 import nets.rnn
 from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
-from utils import Index, ShufflingBatchSampler, EvenlyDistributingSampler, SimpleSGD, createWrappedOptimizerClass
+from utils import Index, ShufflingBatchSampler, EvenlyDistributingSampler, SimpleSGD, createWrappedOptimizerClass, makeOneHot
 
 def parseSystemArgs():
   '''
@@ -95,6 +95,7 @@ def loadData(args):
   print(__BatchSampler.__name__)
   print('Shuffle training batches: ', args.shuffle_batches)
 
+  setattr(args, 'maxseqlen', trainset.maxseqlen)
   setattr(args, 'index', index)
   setattr(args, 'index', classindex)
   setattr(args, 'ntoken', len(index))
@@ -132,16 +133,20 @@ def getprocessfun(args):
   model = args.model
   
   def process(batch_data):
-    # batch_data is list of output from Dataset.__getitem__ appended with boolean if it is a training or testing sample
-    
     x_batch, y_batch, seqlengths, hidden_before, is_training = batch_data
-    # reshape x and y batches so seqlen is dim 0 and batch is dim 1
-    x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
+    x_batch_one_hot = makeOneHot(x_batch, args.ntoken)
+    x_batch_one_hot = x_batch_one_hot.transpose(0,1) # switch dim 0 with dim 1 => x_batch_one_hot = seqlen x batch x ntoken
+
+    hidden = model.init_hidden(x_batch_one_hot.size(1))
+
     if is_training:
       model.zero_grad()
-    outputs, hidden_after = model(x_batch, hidden_before)
-    loss = args.criterion(outputs, y_batch)    
-    return loss, (outputs, hidden_after)
+    for i in range(x_batch_one_hot.size(0)):
+      output, hidden = model(x_batch_one_hot[i], hidden)
+
+    loss = args.criterion(output, y_batch)    
+    
+    return loss, (output, hidden)
   
   return process
 
@@ -248,4 +253,29 @@ if __name__ == '__main__':
       
   except (KeyboardInterrupt, SystemExit):
     print('Process cancelled')
+ 
+#import string   
+#all_letters = string.ascii_letters + " .,;'"
+#n_letters = len(all_letters)
+#    
+#def letterToIndex(letter):
+#    return all_letters.find(letter)
+#
+## Just for demonstration, turn a letter into a <1 x n_letters> Tensor
+#def letterToTensor(letter):
+#    tensor = torch.zeros(1, n_letters)
+#    tensor[0][letterToIndex(letter)] = 1
+#    return tensor
+#
+## Turn a line into a <line_length x 1 x n_letters>,
+## or an array of one-hot letter vectors
+#def lineToTensor(line):
+#    tensor = torch.zeros(len(line), 1, n_letters)
+#    for li, letter in enumerate(line):
+#        tensor[li][0][letterToIndex(letter)] = 1
+#    return tensor
+#
+#print(letterToTensor('J'))
+#
+#print(lineToTensor('Jones').size())
   
