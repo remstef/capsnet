@@ -220,12 +220,11 @@ if __name__ == '__main__':
       val_loss = test_state['test_loss'] / len(test_state['iterator'])
       train_loss = state['train_loss'] / len(state['iterator'])
       
-      print(
-          '''
-          ++ Epoch {:03d} took {:06.2f}s (lr {:5.{lrprec}f}) ++ {:s}
-          | train loss {:5.2f} | valid loss {:5.2f} | train ppl {:8.2f} | valid ppl {:8.2f}
-          {:s}
-          '''.format(
+      print('''\
+++ Epoch {:03d} took {:06.2f}s (lr {:5.{lrprec}f}) ++ {:s}
+| train loss {:5.2f} | valid loss {:5.2f} | train ppl {:8.2f} | valid ppl {:8.2f}
+{:s}\
+'''.format(
           state['epoch'], 
           (time.time() - state['epoch_start_time']),
           args.optimizer.getLearningRate(),
