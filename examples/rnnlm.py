@@ -166,12 +166,12 @@ def getprocessfun(args):
   model = args.model
   def process(batch_data):
     
-    x_batch, y_batch, seqlengths, is_training = batch_data
+    x_batch, y_batch, seqlengths, hidden, is_training = batch_data
     # reshape x and y batches so seqlen is dim 0 and batch is dim 1
     x_batch = x_batch.transpose(0,1) # switch dim 0 with dim 1
     y_batch = y_batch.transpose(0,1).contiguous()
           
-    hidden = model.repackage_hidden(model.h)
+    hidden = model.repackage_hidden(hidden)
     if is_training:
       model.zero_grad()
     outputs, hidden = model(x_batch, hidden, seqlengths)  
@@ -186,10 +186,11 @@ def evaluate(args, dloader):
   # Turn on evaluation mode which disables dropout.
   model.eval()
   total_loss = 0.
-  model.h = model.init_hidden(args.eval_batch_size)
+  hidden = model.init_hidden(args.eval_batch_size)
   with torch.no_grad():
     for batch, batch_data in enumerate(tqdm(dloader, ncols=89, desc = 'Test ')):   
-      batch_data.append(False)    
+      batch_data.append(hidden)
+      batch_data.append(False)
       loss, outputs_flat = process(batch_data)    
       loss_ = loss.item()
       current_loss = args.eval_batch_size * loss_
@@ -203,10 +204,10 @@ def train(args):
   model.train()
   total_loss = 0.
   start_time = time.time()
-  model.h = model.init_hidden(args.batch_size)
+  hidden = model.init_hidden(args.batch_size)
   
   for batch, batch_data in enumerate(tqdm(args.trainloader, ncols=89, desc='train')):
-    
+    batch_data.append(hidden)
     batch_data.append(True)
     model.zero_grad()
     loss, outputs_flat = process(batch_data)
