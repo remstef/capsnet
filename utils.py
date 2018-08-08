@@ -237,8 +237,9 @@ def createWrappedOptimizerClass(optimizer_clazz):
       if closure is not None:
         loss = closure()
       groups = self.param_groups
-      for group in groups:
-        torch.nn.utils.clip_grad_norm_(group['params'], self.clip)              
+      if self.clip is not None and self.clip != 0:
+        for group in groups:
+          torch.nn.utils.clip_grad_norm_(group['params'], self.clip)              
       super(Wrapped, self).step(closure=None)
       return loss    
     def __repr__(self):

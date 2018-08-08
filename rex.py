@@ -114,7 +114,7 @@ def buildModel(args):
       nclasses = args.nclasses
       ).to(args.device)
   criterion = torch.nn.NLLLoss() # CrossEntropyLoss()
-  optimizer = torch.optim.SGD(model.parameters(), lr =args.lr)
+  optimizer = createWrappedOptimizerClass(torch.optim.SGD)(model.parameters(), lr =args.lr, clip=None)
 
   print(model)
   print(criterion)
