@@ -169,6 +169,7 @@ if __name__ == '__main__':
       state['train_loss'] = 0.
       state['test_loss'] = 0.
       state['train_loss_per_interval'] = 0.
+      state['hidden'] = model.init_hidden(args.batch_size)
     
     def on_end(state):
       pass
@@ -177,7 +178,6 @@ if __name__ == '__main__':
       state['sample'].append(state['hidden'])
       state['sample'].append(state['train'])
       state['batch_start_time'] = time.time()
-      state['hidden'] = model.init_hidden(args.batch_size)
       
     def on_forward(state):
       # TODO: track meters
