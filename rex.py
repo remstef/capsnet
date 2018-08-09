@@ -183,16 +183,16 @@ def pipeline(args):
     # Turn on evaluation mode which disables dropout.
     model.eval()
     total_loss = 0.
-    hidden = model.init_hidden(args.eval_batch_size)
+    hidden = model.init_hidden(args.batch_size)
     with torch.no_grad():
       for batch, batch_data in enumerate(tqdm(dloader, ncols=89, desc = 'Test ')):   
         batch_data.append(hidden)
         batch_data.append(False)
         loss, (outputs_flat, hidden) = process(batch_data)    
         loss_ = loss.item()
-        current_loss = args.eval_batch_size * loss_
+        current_loss = args.batch_size * loss_
         total_loss += current_loss
-    return total_loss / (len(dloader) * args.eval_batch_size )
+    return total_loss / (len(dloader) * args.batch_size )
   
   
   def train(args):
@@ -215,8 +215,8 @@ def pipeline(args):
       if batch % args.log_interval == 0 and batch > 0:
         cur_loss = train_loss / args.log_interval
         tqdm.write(message_status_interval('Current Status:', epoch+1, args.epochs, batch, len(args.trainloader), batch_start_time, args.log_interval, cur_loss))
-        interval_loss = 0
-    return train_loss / (len(args.trainloader) * args.batch_size )
+        interval_loss = 0.
+    return train_loss / (len(args.trainloader) * args.batch_size)
 
   ###
   # Run pipeline
