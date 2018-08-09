@@ -153,10 +153,10 @@ class RNN_LM_original(torch.nn.Module):
     else:
       return w.new_zeros(self.nlayers, bsz, self.nhid)
 
-'''
-
-'''
 class RNN_LM_simple(torch.nn.Module):
+  '''
+  
+  '''
   def __init__(self, ntoken, emsize, nhid, nlayers=1):
     super(RNN_LM_simple, self).__init__()
     self.ntoken = ntoken
@@ -176,14 +176,38 @@ class RNN_LM_simple(torch.nn.Module):
 
   def init_hidden(self):
     return torch.autograd.Variable(torch.zeros(self.nlayers, 1, self.nhid))
-  
-'''
- taken from https://pytorch.org/tutorials/intermediate/char_rnn_classification_tutorial.html
-'''  
+
+
 class RNN_CLASSIFY_simple(torch.nn.Module):
-  
-  def __init__(self, ntoken, nhid, nclasses):
+  '''
+  inspired by https://discuss.pytorch.org/t/lstm-for-many-to-one-multiclass-classification-problem/14268/5
+  '''
+  def __init__(self, ntokens, nhid, nlayers, nclasses):
     super(RNN_CLASSIFY_simple, self).__init__()
+    self.nhid = nhid
+    self.nlayers = nlayers
+    self.lstm = torch.nn.LSTM(ntokens, nhid, nlayers, batch_first=True)
+    self.fc = torch.nn.Linear(nhid, nclasses)
+  
+  def forward(self, x):
+    # Set initial hidden and cell states 
+    h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(self.device()) 
+    c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(self.device())
+    
+    # Forward propagate LSTM
+    out, _ = self.lstm(x, (h0, c0))  # out: tensor of shape (batch_size, seq_length, hidden_size)
+    
+    # Decode the hidden state of the last time step
+    out = self.fc(out[:, -1, :])
+    return out
+
+  
+class RNN_CLASSIFY_linear(torch.nn.Module):
+  '''
+   taken from https://pytorch.org/tutorials/intermediate/char_rnn_classification_tutorial.html
+  '''    
+  def __init__(self, ntoken, nhid, nclasses):
+    super(RNN_CLASSIFY_linear, self).__init__()
     self.ntoken = ntoken
     self.nhid = nhid
     self.nclasses = nclasses

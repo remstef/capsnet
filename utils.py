@@ -129,15 +129,14 @@ class ShufflingBatchSampler(torch.utils.data.sampler.BatchSampler):
   def __len__(self):
     return len(self.batchsampler)
       
-
-'''
-Test the sampler:
-  
-  [[chr(i+ord('a')) for i in batch] for batch in EvenlyDistributingSampler(SequentialSampler(list(range(25))), batch_size=4, drop_last=True)]
-  
-'''      
+    
 class EvenlyDistributingSampler(torch.utils.data.sampler.BatchSampler):
-  
+  '''
+  Test:
+    
+    [[chr(i+ord('a')) for i in batch] for batch in EvenlyDistributingSampler(SequentialSampler(list(range(25))), batch_size=4, drop_last=True)]
+    
+  '''  
   def __init__(self, sampler, batch_size, drop_last, *args, **kwargs):
     super(EvenlyDistributingSampler, self).__init__(sampler, batch_size, drop_last, *args, **kwargs)
     if not drop_last:
@@ -198,10 +197,10 @@ class EvenlyDistributingSampler(torch.utils.data.sampler.BatchSampler):
       
 class SimpleSGD(torch.optim.Optimizer):
 
-  def __init__(self, params, lr=requiredParam, clip=0.25):
+  def __init__(self, params, lr=requiredParam):
     if lr is not requiredParam and lr < 0.0:
-      raise ValueError("Invalid learning rate: {}".format(lr))
-    defaults = dict(lr=lr, clip=clip)
+      raise ValueError('Invalid learning rate: {}'.format(lr))
+    defaults = dict(lr=lr)
     super(SimpleSGD, self).__init__(params, defaults)
     
   def step(self, closure=None):
@@ -210,8 +209,6 @@ class SimpleSGD(torch.optim.Optimizer):
       loss = closure()
       
     for group in self.param_groups:
-      # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-      # torch.nn.utils.clip_grad_norm_(group['params'], group['clip'])
       for p in group['params']:
         d_p = p.grad.data
         p.data.add_(-group['lr'], d_p)
@@ -220,7 +217,12 @@ class SimpleSGD(torch.optim.Optimizer):
        
           
 def createWrappedOptimizerClass(optimizer_clazz):
-
+  '''
+  Provide methods in order to 
+    - get the current learning rate of an optimizer
+    - adjust the learning rate by a factor
+    - perform clipping of gradients before a step
+  '''
   class Wrapped(optimizer_clazz):
     def __init__(self,  *args, clip = 0.2, **kwargs):
       super(Wrapped, self).__init__(*args, **kwargs)
@@ -259,6 +261,9 @@ def makeBow(X_one_hot):
    return X_bow
       
 class SimpleRepl(object):
+  '''
+  Provide some simple REPL functionality
+  '''
   def __init__(self, evaluator=lambda cmd: print("You entered '%s'." % cmd), PS1 = '>> '):
     self.ps1 = PS1
     self.evaluator = evaluator

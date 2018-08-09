@@ -97,7 +97,7 @@ def loadData(args):
 
   setattr(args, 'maxseqlen', trainset.maxseqlen)
   setattr(args, 'index', index)
-  setattr(args, 'index', classindex)
+  setattr(args, 'classindex', classindex)
   setattr(args, 'ntoken', len(index))
   setattr(args, 'nclasses', len(classindex))
   setattr(args, 'trainloader', train_loader)
