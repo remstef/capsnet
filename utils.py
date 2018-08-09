@@ -252,7 +252,7 @@ def createWrappedOptimizerClass(optimizer_clazz):
 def makeOneHot(X, ntoken):
   # X = batch_size x seq
   batch_size, seqlen = X.size()
-  X_one_hot = torch.zeros(batch_size, seqlen , ntoken).to(X.device)
+  X_one_hot = X.new_zeros(batch_size, seqlen , ntoken).float()
   X_one_hot.scatter_(2, X.unsqueeze(2), 1.)
   return X_one_hot
 

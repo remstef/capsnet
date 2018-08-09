@@ -227,7 +227,7 @@ def pipeline(args):
     epoch_start_time = time.time()
     train_loss = train(args)
     test_loss = evaluate(args, args.testloader)
-    print(message_status_endepoch('', epoch+1, epoch_start_time, args.optimizer.getLearningrate(), train_loss, test_loss))
+    print(message_status_endepoch('', epoch+1, epoch_start_time, args.optimizer.getLearningRate(), train_loss, test_loss))
 
 ###############################################################################
 # Run in Engine mode
