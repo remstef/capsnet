@@ -53,7 +53,7 @@ class RNNLM(torch.nn.Module):
     w = next(self.parameters())
     if self.rnn_type == 'LSTM':
       h = (w.new_zeros(self.nlayers, bsz, self.nhid),
-                w.new_zeros(self.nlayers, bsz, self.nhid))
+           w.new_zeros(self.nlayers, bsz, self.nhid))
     else:
       h = w.new_zeros(self.nlayers, bsz, self.nhid)   
     return h
