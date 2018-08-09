@@ -133,7 +133,7 @@ def message_status_interval(message, epoch, max_epoch, batch_i, nbatches, batch_
       max_epoch,
       batch_i,
       nbatches,
-      (time.time() - batch_start_time * 1000) / log_interval, 
+      ((time.time() - batch_start_time) * 1000) / log_interval, 
       train_loss_interval)
 
 def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, train_loss, test_loss):
@@ -312,6 +312,7 @@ if __name__ == '__main__':
     args = buildModel(args)  
     
     if args.engine:
+      print('Running in torchnet engine.')
       engine(args)
     else:
       pipeline(args)
