@@ -182,11 +182,12 @@ class RNN_CLASSIFY_simple(torch.nn.Module):
   '''
   inspired by https://discuss.pytorch.org/t/lstm-for-many-to-one-multiclass-classification-problem/14268/5
   '''
-  def __init__(self, ntokens, nhid, nlayers, nclasses):
+  def __init__(self, ntoken, nhid, nlayers, nclasses):
     super(RNN_CLASSIFY_simple, self).__init__()
+    self.ntoken = ntoken
     self.nhid = nhid
     self.nlayers = nlayers
-    self.lstm = torch.nn.LSTM(ntokens, nhid, nlayers, batch_first=True)
+    self.lstm = torch.nn.LSTM(ntoken, nhid, nlayers, batch_first=True)
     self.fc = torch.nn.Linear(nhid, nclasses)
   
   def forward(self, x):

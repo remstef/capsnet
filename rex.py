@@ -9,7 +9,6 @@ if not '..' in sys.path: sys.path.append('..')
 
 import argparse
 import time
-import math
 import os
 from tqdm import tqdm
 import torch
@@ -17,9 +16,10 @@ from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSamp
 import torchnet
 
 import data
+import utils
 import nets.rnn
-from embedding import Embedding, FastTextEmbedding, TextEmbedding, RandomEmbedding
-from utils import Index, ShufflingBatchSampler, EvenlyDistributingSampler, SimpleSGD, createWrappedOptimizerClass, makeOneHot
+import embedding
+
 
 def parseSystemArgs():
   '''
@@ -46,6 +46,7 @@ def parseSystemArgs():
   parser.add_argument('--shuffle-samples', action='store_true', help='shuffle samples')
   parser.add_argument('--sequential-sampling', action='store_true', help='use samples and batches sequentially.')
   parser.add_argument('--cuda', action='store_true', help='use CUDA')
+  parser.add_argument('--engine', action='store_true', help='use torchnet engine for traininge and testing.')
   args = parser.parse_args()
   
   # Set the random seed manually for reproducibility.
@@ -61,8 +62,8 @@ def parseSystemArgs():
 
 
 def loadData(args):
-  index = Index(initwords = ['<unk>'], unkindex = 0)
-  classindex = Index()
+  index = utils.Index(initwords = ['<unk>'], unkindex = 0)
+  classindex =utils.Index()
   trainset = data.SemEval2010('data/semeval2010/', subset='train.txt', index = index, classindex = classindex).to(args.device)
   index.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'vocab_chars.txt' if args.chars else 'vocab_tokens.txt'))
   classindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes.txt'))
@@ -72,23 +73,23 @@ def loadData(args):
   if args.init_weights:
     # determine type of embedding by checking it's suffix
     if args.init_weights.endswith('bin'):
-      preemb = FastTextEmbedding(args.init_weights, normalize = True).load()
+      preemb = embedding.FastTextEmbedding(args.init_weights, normalize = True).load()
       if args.emsize != preemb.dim():
         raise ValueError('emsize must match embedding size. Expected %d but got %d)' % (args.emsize, preemb.dim()))
     elif args.init_weights.endswith('txt'):
-      preemb = TextEmbedding(args.init_weights, vectordim = args.emsize).load(normalize = True)
+      preemb = embedding.TextEmbedding(args.init_weights, vectordim = args.emsize).load(normalize = True)
     elif args.init_weights.endswith('rand'):
-      preemb = RandomEmbedding(vectordim = args.emsize)
+      preemb = embedding.RandomEmbedding(vectordim = args.emsize)
     else:
       raise ValueError('Type of embedding cannot be inferred.')
-    preemb = Embedding.filteredEmbedding(index.vocabulary(), preemb, fillmissing = True)
+    preemb = embedding.Embedding.filteredEmbedding(index.vocabulary(), preemb, fillmissing = True)
     preemb_weights = torch.Tensor(preemb.weights)
   else:
     preemb_weights = None
   
   __ItemSampler = RandomSampler if args.shuffle_samples else SequentialSampler
-  __BatchSampler = BatchSampler if args.sequential_sampling else EvenlyDistributingSampler  
-  train_loader = torch.utils.data.DataLoader(trainset, batch_sampler = ShufflingBatchSampler(__BatchSampler(__ItemSampler(trainset), batch_size=args.batch_size, drop_last = True), shuffle = args.shuffle_batches, seed = args.seed), num_workers = 0)
+  __BatchSampler = BatchSampler if args.sequential_sampling else utils.EvenlyDistributingSampler  
+  train_loader = torch.utils.data.DataLoader(trainset, batch_sampler = utils.ShufflingBatchSampler(__BatchSampler(__ItemSampler(trainset), batch_size=args.batch_size, drop_last = True), shuffle = args.shuffle_batches, seed = args.seed), num_workers = 0)
   test_loader = torch.utils.data.DataLoader(testset, batch_sampler = __BatchSampler(__ItemSampler(testset), batch_size=args.batch_size, drop_last = True), num_workers = 0)
 
   print(__ItemSampler.__name__)
@@ -108,13 +109,13 @@ def loadData(args):
 
 def buildModel(args):
 
-  model = nets.rnn.RNN_CLASSIFY_simple(
+  model = nets.rnn.RNN_CLASSIFY_linear(
       ntoken = args.ntoken,
       nhid = args.nhid, 
       nclasses = args.nclasses
       ).to(args.device)
   criterion = torch.nn.NLLLoss() # CrossEntropyLoss()
-  optimizer = createWrappedOptimizerClass(torch.optim.SGD)(model.parameters(), lr =args.lr, clip=None)
+  optimizer = utils.createWrappedOptimizerClass(torch.optim.SGD)(model.parameters(), lr =args.lr, clip=None)
 
   print(model)
   print(criterion)
@@ -126,21 +127,43 @@ def buildModel(args):
   
   return args
 
+def message_status_interval(message, epoch, max_epoch, batch_i, nbatches, batch_start_time, log_interval, train_loss_interval):
+  return '| epoch {:3d} / {:3d} | batch {:5d} / {:5d} | ms/batch {:5.2f} | loss {:5.2f}'.format(
+      epoch,
+      max_epoch,
+      batch_i,
+      nbatches,
+      (time.time() - batch_start_time * 1000) / log_interval, 
+      train_loss_interval)
+
+def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, train_loss, test_loss):
+  return '''\
+++ Epoch {:03d} took {:06.2f}s (lr {:5.{lrprec}f}) ++ {:s}
+| train loss {:5.2f} | valid loss {:5.2f}
+{:s}\
+'''.format(
+      epoch, 
+      (time.time() - epoch_start_time),
+      learning_rate,
+      '-'*(49 if learning_rate >= 1 else 47),
+      train_loss, 
+      test_loss,
+      '-' * 89,
+      lrprec=2 if learning_rate >= 1 else 5)
+
 ###############################################################################
-# Process one batch
+# Functions which process one batch
 ###############################################################################
 def getprocessfun(args):
   model = args.model
   
   def process(batch_data):
     x_batch, y_batch, seqlengths, hidden_before, is_training = batch_data
-    x_batch_one_hot = makeOneHot(x_batch, args.ntoken)
+    x_batch_one_hot = utils.makeOneHot(x_batch, args.ntoken)
     x_batch_one_hot = x_batch_one_hot.transpose(0,1) # switch dim 0 with dim 1 => x_batch_one_hot = seqlen x batch x ntoken
 
     hidden = model.init_hidden(x_batch_one_hot.size(1))
 
-    if is_training:
-      model.zero_grad()
     for i in range(x_batch_one_hot.size(0)):
       output, hidden = model(x_batch_one_hot[i], hidden)
 
@@ -150,21 +173,70 @@ def getprocessfun(args):
   
   return process
 
-
-if __name__ == '__main__':
- 
-  try:
+###############################################################################
+# Run in Pipeline mode
+###############################################################################
+def pipeline(args):
     
-    args = parseSystemArgs()
-    args = loadData(args)
-    args = buildModel(args)  
-    process = getprocessfun(args)
+  def evaluate(args, dloader):
     model = args.model
+    # Turn on evaluation mode which disables dropout.
+    model.eval()
+    total_loss = 0.
+    hidden = model.init_hidden(args.eval_batch_size)
+    with torch.no_grad():
+      for batch, batch_data in enumerate(tqdm(dloader, ncols=89, desc = 'Test ')):   
+        batch_data.append(hidden)
+        batch_data.append(False)
+        loss, (outputs_flat, hidden) = process(batch_data)    
+        loss_ = loss.item()
+        current_loss = args.eval_batch_size * loss_
+        total_loss += current_loss
+    return total_loss / (len(dloader) * args.eval_batch_size )
+  
+  
+  def train(args):
+    model = args.model
+    # Turn on training mode which enables dropout.
+    model.train()
+    train_loss = 0.
+    interval_loss = 0.
+    hidden = model.init_hidden(args.batch_size)
+    
+    for batch, batch_data in enumerate(tqdm(args.trainloader, ncols=89, desc='Train')):
+      batch_start_time = time.time()
+      model.zero_grad()
+      loss, outputs_flat = process(batch_data + [hidden, True])
+      loss.backward()
+      args.optimizer.step()
+      train_loss += loss.item()
+      interval_loss += loss.item()
+  
+      if batch % args.log_interval == 0 and batch > 0:
+        cur_loss = train_loss / args.log_interval
+        tqdm.write(message_status_interval('Current Status:', epoch+1, args.epochs, batch, len(args.trainloader), batch_start_time, args.log_interval, cur_loss))
+        interval_loss = 0
+    return train_loss / (len(args.trainloader) * args.batch_size )
 
-    ###############################################################################
+  ###
+  # Run pipeline
+  ###
+  process = getprocessfun(args)
+  
+  for epoch in range(args.epochs):
+    epoch_start_time = time.time()
+    train_loss = train(args)
+    test_loss = evaluate(args, args.testloader)
+    print(message_status_endepoch('', epoch+1, epoch_start_time, args.optimizer.getLearningrate(), train_loss, test_loss))
+
+###############################################################################
+# Run in Engine mode
+###############################################################################
+def engine(args):
+
+    ###########################################################################
     # Set up Engine
-    ###############################################################################
-          
+    ###########################################################################
     def on_start(state):
       state['train_loss'] = 0.
       state['test_loss'] = 0.
@@ -180,7 +252,7 @@ if __name__ == '__main__':
       state['batch_start_time'] = time.time()
       
     def on_forward(state):
-      # TODO: track meters
+      # TODO: meters for tracking performance
       outputs, hidden = state['output']
       state['hidden'] = hidden
       loss_val = state['loss'].item()
@@ -195,16 +267,8 @@ if __name__ == '__main__':
           maxepoch = state['maxepoch']
           t_epoch = t % len(state['iterator'])
           cur_loss = state['train_loss_per_interval'] / args.log_interval
-          elapsed = time.time() - state['batch_start_time']
-          tqdm.write('| epoch {:3d} / {:3d} | batch {:5d} / {:5d} | ms/batch {:5.2f} | loss {:5.2f}'.format(
-              epoch+1,
-              maxepoch,
-              t_epoch,
-              len(state['iterator']),
-              (elapsed * 1000) / args.log_interval, 
-              cur_loss
-              ))
           state['train_loss_per_interval'] = 0.
+          tqdm.write(message_status_interval('Current status', epoch+1, maxepoch, t_epoch, len(state['iterator']), state['batch_start_time'], args.log_interval, cur_loss))
       
     def on_start_epoch(state):
       state['epoch_start_time'] = time.time()
@@ -217,22 +281,9 @@ if __name__ == '__main__':
     def on_end_epoch(state):
       model.eval()
       test_state = engine.test(process, tqdm(args.testloader, ncols=89, desc='test '))
-      val_loss = test_state['test_loss'] / len(test_state['iterator'])
+      test_loss = test_state['test_loss'] / len(test_state['iterator'])
       train_loss = state['train_loss'] / len(state['iterator'])
-      
-      print('''\
-++ Epoch {:03d} took {:06.2f}s (lr {:5.{lrprec}f}) ++ {:s}
-| train loss {:5.2f} | valid loss {:5.2f}
-{:s}\
-'''.format(
-          state['epoch'], 
-          (time.time() - state['epoch_start_time']),
-          args.optimizer.getLearningRate(),
-          '-'*(49 if args.optimizer.getLearningRate() >= 1 else 47),
-          train_loss, 
-          val_loss,
-          '-' * 89,
-          lrprec=2 if args.optimizer.getLearningRate() >= 1 else 5))
+      print(message_status_endepoch('End of epoch', state['epoch'], state['epoch_start_time'], args.optimizer.getLearningRate(), train_loss, test_loss))
   
     # define engine 
     engine = torchnet.engine.Engine()  
@@ -242,12 +293,29 @@ if __name__ == '__main__':
     engine.hooks['on_forward'] = on_forward
     engine.hooks['on_end_epoch'] = on_end_epoch
       
-    ###############################################################################
+    ###########################################################################
     # run training
-    ###############################################################################
+    ###########################################################################
+
+    process = getprocessfun(args)
+    model = args.model
     
-    final_state = engine.train(process, args.trainloader, maxepoch=args.epochs, optimizer=args.optimizer)
-      
+    engine.train(process, args.trainloader, maxepoch=args.epochs, optimizer=args.optimizer)
+
+
+if __name__ == '__main__':
+ 
+  try:
+    
+    args = parseSystemArgs()
+    args = loadData(args)
+    args = buildModel(args)  
+    
+    if args.engine:
+      engine(args)
+    else:
+      pipeline(args)
+    
   except (KeyboardInterrupt, SystemExit):
     print('Process cancelled')
  
