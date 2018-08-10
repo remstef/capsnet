@@ -193,8 +193,10 @@ def pipeline(args):
     # Turn on evaluation mode which disables dropout.
     model.eval()
     total_loss = 0.
-    hidden = model.init_hidden(args.batch_size)
+    predictions = []
+    targets = []
     
+    hidden = model.init_hidden(args.batch_size)
     with torch.no_grad():
       for batch, batch_data in enumerate(tqdm(dloader, ncols=89, desc = 'Test ')):   
         batch_data.append(hidden)
