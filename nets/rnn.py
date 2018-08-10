@@ -225,9 +225,6 @@ class RNN_CLASSIFY_linear(torch.nn.Module):
     return o, h
 
   def init_hidden(self, batch_size):
-#    w = next(self.parameters())
-#    return w.new_zeros(1, self.nhid)
-#    return torch.zeros(1, self.hidden_size)
     w = next(self.parameters())
     return w.new_zeros(batch_size, self.nhid)
   

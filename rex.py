@@ -11,9 +11,11 @@ import argparse
 import time
 import os
 from tqdm import tqdm
+import sklearn.metrics
 import torch
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 import torchnet
+
 
 import data
 import utils
@@ -104,6 +106,7 @@ def loadData(args):
   setattr(args, 'trainloader', train_loader)
   setattr(args, 'testloader', test_loader)
   setattr(args, 'preembweights', preemb_weights)
+  setattr(args, 'confusion_meter', torchnet.meter.ConfusionMeter(len(classindex), normalized=True))
 
   return args
 
@@ -127,7 +130,7 @@ def buildModel(args):
   
   return args
 
-def message_status_interval(message, epoch, max_epoch, batch_i, nbatches, batch_start_time, log_interval, train_loss_interval):
+def message_status_interval(message, epoch, max_epoch, batch_i, nbatches, batch_start_time, log_interval, train_loss_interval, predictions, targets):
   return '| epoch {:3d} / {:3d} | batch {:5d} / {:5d} | ms/batch {:5.2f} | loss {:5.2f}'.format(
       epoch,
       max_epoch,
@@ -136,10 +139,13 @@ def message_status_interval(message, epoch, max_epoch, batch_i, nbatches, batch_
       ((time.time() - batch_start_time) * 1000) / log_interval, 
       train_loss_interval)
 
-def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, train_loss, test_loss):
+def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, train_loss, test_loss, predictions, targets):
+  p = sklearn.metrics.precision_score(targets, predictions, average='micro')
+  r = sklearn.metrics.recall_score(targets, predictions, average='micro')
+  f = sklearn.metrics.f1_score(targets, predictions, average='micro')
   return '''\
 ++ Epoch {:03d} took {:06.2f}s (lr {:5.{lrprec}f}) ++ {:s}
-| train loss {:5.2f} | valid loss {:5.2f}
+| train loss {:5.2f} | test loss {:5.2f} | p {:4.2f} | r {:4.2f} | f1 {:4.2f}
 {:s}\
 '''.format(
       epoch, 
@@ -148,8 +154,12 @@ def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, tra
       '-'*(49 if learning_rate >= 1 else 47),
       train_loss, 
       test_loss,
+      p, r, f,
       '-' * 89,
       lrprec=2 if learning_rate >= 1 else 5)
+
+def getpredictions(batch_logprobs):
+  return batch_logprobs.max(dim=1)[1]  
 
 ###############################################################################
 # Functions which process one batch
@@ -165,11 +175,11 @@ def getprocessfun(args):
     hidden = model.init_hidden(x_batch_one_hot.size(1))
 
     for i in range(x_batch_one_hot.size(0)):
-      output, hidden = model(x_batch_one_hot[i], hidden)
+      outputs, hidden = model(x_batch_one_hot[i], hidden)
 
-    loss = args.criterion(output, y_batch)    
+    loss = args.criterion(outputs, y_batch)    
     
-    return loss, (output, hidden)
+    return loss, (outputs, hidden)
   
   return process
 
@@ -184,15 +194,20 @@ def pipeline(args):
     model.eval()
     total_loss = 0.
     hidden = model.init_hidden(args.batch_size)
+    
     with torch.no_grad():
       for batch, batch_data in enumerate(tqdm(dloader, ncols=89, desc = 'Test ')):   
         batch_data.append(hidden)
         batch_data.append(False)
-        loss, (outputs_flat, hidden) = process(batch_data)    
-        loss_ = loss.item()
-        current_loss = args.batch_size * loss_
-        total_loss += current_loss
-    return total_loss / (len(dloader) * args.batch_size )
+        loss, (outputs, hidden) = process(batch_data)
+        # keep track of some scores
+        total_loss += args.batch_size * loss.item()
+        args.confusion_meter.add(outputs.data, batch_data[1])
+        predictions.extend(getpredictions(outputs.data).tolist())
+        targets.extend(batch_data[1].tolist())
+        
+    test_loss = total_loss / (len(dloader) * args.batch_size )
+    return test_loss, predictions, targets
   
   
   def train(args):
@@ -201,22 +216,29 @@ def pipeline(args):
     model.train()
     train_loss = 0.
     interval_loss = 0.
-    hidden = model.init_hidden(args.batch_size)
+    predictions = []
+    targets = []
     
+    hidden = model.init_hidden(args.batch_size)    
     for batch, batch_data in enumerate(tqdm(args.trainloader, ncols=89, desc='Train')):
       batch_start_time = time.time()
       model.zero_grad()
-      loss, outputs_flat = process(batch_data + [hidden, True])
+      loss, (outputs, hidden) = process(batch_data + [hidden, True])
       loss.backward()
       args.optimizer.step()
+      # track some scores
       train_loss += loss.item()
       interval_loss += loss.item()
+      args.confusion_meter.add(outputs.data, batch_data[1])
+      predictions.extend(getpredictions(outputs.data).tolist())
+      targets.extend(batch_data[1].tolist())
   
       if batch % args.log_interval == 0 and batch > 0:
         cur_loss = train_loss / args.log_interval
-        tqdm.write(message_status_interval('Current Status:', epoch+1, args.epochs, batch, len(args.trainloader), batch_start_time, args.log_interval, cur_loss))
+        tqdm.write(message_status_interval('Current Status:', epoch+1, args.epochs, batch, len(args.trainloader), batch_start_time, args.log_interval, cur_loss, predictions, targets))
         interval_loss = 0.
-    return train_loss / (len(args.trainloader) * args.batch_size)
+      train_loss = train_loss / (len(args.trainloader) * args.batch_size)
+    return train_loss, predictions, targets
 
   ###
   # Run pipeline
@@ -225,9 +247,9 @@ def pipeline(args):
   
   for epoch in range(args.epochs):
     epoch_start_time = time.time()
-    train_loss = train(args)
-    test_loss = evaluate(args, args.testloader)
-    print(message_status_endepoch('', epoch+1, epoch_start_time, args.optimizer.getLearningRate(), train_loss, test_loss))
+    train_loss, _, _ = train(args)
+    test_loss, predictions, targets = evaluate(args, args.testloader)
+    print(message_status_endepoch('', epoch+1, epoch_start_time, args.optimizer.getLearningRate(), train_loss, test_loss, predictions, targets))
 
 ###############################################################################
 # Run in Engine mode
