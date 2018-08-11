@@ -87,6 +87,9 @@ class Index(object):
   def __len__(self):
     return self.size()
   
+  def __repr__(self):
+    return 'Index ([\n  {}\n])'.format('\n  '.join(map(lambda tup: f'{tup[0]:4d}: {tup[1]}', enumerate(self.id2w))))
+  
   @staticmethod
   def fromfile(fname):
     index = Index()

@@ -5517,7 +5517,7 @@
 5517	"In the presence of Cuba's favorite son, Estrada Palma, who is to enjoy the honor of being the first <e1>chief executive</e1> of this <e2>republic</e2>."	Other	Comment:
 5518	"My <e1>itinerary</e1> was in a <e2>suitcase</e2>, among stacks of teaching materials so I asked the Delta ticket agent to look up my outgoing flight number."	Content-Container(e1,e2)	Comment: the suitcase has the itinerary in it
 5519	"A New York Times food <e1>writer</e1> fries the potatoes in a <e2>mixture</e2> of peanut oil and duck fat with bacon added."	Instrument-Agency(e2,e1)	Comment:
-5520	"His administration is moderate, but it contains a <e1>faction</e1> of <e2>extremists</e2>.""	Member-Collection(e2,e1)	Comment:
+5520	"His administration is moderate, but it contains a <e1>faction</e1> of <e2>extremists</e2>."	Member-Collection(e2,e1)	Comment:
 5521	"The passenger side front <e1>window</e1> has fallen into the <e2>door</e2>, both front and back need new window regulators."	Entity-Destination(e1,e2)	Comment:
 5522	"Unfortunately on the right flank a <e1>unit</e1> of dismounted <e2>grenadiers</e2> were spotted by a Tau Piranha team supported by Kroot."	Member-Collection(e2,e1)	Comment:
 5523	"At the <e1>saint</e1>'s <e2>prayer</e2>, the statue comes to life, and drops of milk, a metaphor for the gift of life, fall from the Virgin's breast onto Bernard's lips."	Product-Producer(e2,e1)	Comment: (a), (d) satisfied
@@ -7998,4 +7998,3 @@
 7998	"To test this, we placed a kitchen <e1>match</e1> in the <e2>jar</e2> instead of the candle, lit the match, screwed on the lid and dropped the jar."	Entity-Destination(e1,e2)	Comment:
 7999	"The farmers and city officials in the region have tried to get state money to move the <e1>farmers</e1> <e2>market</e2> into a first-class operation and tourist attraction."	Other	Comment:
 8000	"The <e1>surgeon</e1> cuts a small <e2>hole</e2> in the skull and lifts the edge of the brain to expose the nerve."	Product-Producer(e2,e1)	Comment:
-

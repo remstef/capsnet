@@ -30,11 +30,13 @@ def parseSystemArgs():
   parser = argparse.ArgumentParser(description='Relation Extraction')
 #  parser.add_argument('--data', default='../data/semeval2010', type=str, help='location of the data corpus')
   parser.add_argument('--model', default='LSTM', type=str, help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
+  parser.add_argument('--optimizer', default='SGD', type=str, help='type of optimizer (SGD, Adam, ASGD, SimpleSGD)')
   parser.add_argument('--emsize', default=200, type=int, help='size of word embeddings')
   parser.add_argument('--nhid', default=200, type=int, help='number of hidden units per layer')
   parser.add_argument('--nlayers', default=2, type=int, help='number of layers')
   parser.add_argument('--lr', default=1., type=float, help='initial learning rate')
   parser.add_argument('--lr-decay', default=0.25, type=float, help='decay amount of learning learning rate if no validation improvement occurs')
+  parser.add_argument('--wdecay', default=1.2e-6, type=float, help='weight decay applied to all weights')
   parser.add_argument('--clip', default=0.25, type=float, help='gradient clipping')
   parser.add_argument('--epochs', default=40, type=int, help='upper epoch limit')
   parser.add_argument('--batch-size', default=20, type=int, metavar='N', help='batch size') 
@@ -118,7 +120,13 @@ def buildModel(args):
       nclasses = args.nclasses
       ).to(args.device)
   criterion = torch.nn.NLLLoss() # CrossEntropyLoss()
-  optimizer = utils.createWrappedOptimizerClass(torch.optim.SGD)(model.parameters(), lr =args.lr, clip=None)
+  if args.optimizer == 'SimpleSGD':
+    Optimizer__ = utils.SimpleSGD
+  elif not args.optimizer in ['Adam', 'ASGD', 'SGD']:
+    raise ValueError( '''Invalid option `%s` for 'optimizer' was supplied.''' % args.optimizer)
+  else:
+    Optimizer__ = getattr(torch.optim, args.optimizer)
+  optimizer = utils.createWrappedOptimizerClass(Optimizer__)(model.parameters(), lr =args.lr, clip=None, weight_decay=args.wdecay)
 
   print(model)
   print(criterion)
@@ -131,21 +139,27 @@ def buildModel(args):
   return args
 
 def message_status_interval(message, epoch, max_epoch, batch_i, nbatches, batch_start_time, log_interval, train_loss_interval, predictions, targets):
-  return '| epoch {:3d} / {:3d} | batch {:5d} / {:5d} | ms/batch {:5.2f} | loss {:5.2f}'.format(
+  p = sklearn.metrics.precision_score(targets, predictions, average='micro')
+  r = sklearn.metrics.recall_score(targets, predictions, average='micro')
+  f = sklearn.metrics.f1_score(targets, predictions, average='micro')
+  a = sklearn.metrics.accuracy_score(targets, predictions)
+  return '| epoch {:3d} / {:3d} | batch {:5d} / {:5d} | ms/batch {:5.2f} | loss {:5.2f} | {:4.2f}/{:4.2f}/{:4.2f}/{:4.2f}'.format(
       epoch,
       max_epoch,
       batch_i,
       nbatches,
       ((time.time() - batch_start_time) * 1000) / log_interval, 
-      train_loss_interval)
+      train_loss_interval,
+      p,r,f,a)
 
 def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, train_loss, test_loss, predictions, targets):
   p = sklearn.metrics.precision_score(targets, predictions, average='micro')
   r = sklearn.metrics.recall_score(targets, predictions, average='micro')
   f = sklearn.metrics.f1_score(targets, predictions, average='micro')
+  a = sklearn.metrics.accuracy_score(targets, predictions)
   return '''\
 ++ Epoch {:03d} took {:06.2f}s (lr {:5.{lrprec}f}) ++ {:s}
-| train loss {:5.2f} | test loss {:5.2f} | p {:4.2f} | r {:4.2f} | f1 {:4.2f}
+| train loss {:5.2f} | test loss {:5.2f} | p {:4.2f} | r {:4.2f} | f1 {:4.2f} | a {:4.2f}
 {:s}\
 '''.format(
       epoch, 
@@ -154,7 +168,7 @@ def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, tra
       '-'*(49 if learning_rate >= 1 else 47),
       train_loss, 
       test_loss,
-      p, r, f,
+      p, r, f, a,
       '-' * 89,
       lrprec=2 if learning_rate >= 1 else 5)
 

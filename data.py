@@ -5,17 +5,17 @@ Created on Mon Jul  9 15:32:26 2018
 
 @author: rem
 """
-
-import numpy as np
-import math
+import sys
 import os
-import pandas
 import csv
+import math
+import re
+import numpy as np
+import pandas
 import torch
 from tqdm import tqdm
 import torch.utils
 import torch.utils.data
-import sys
 from sklearn.preprocessing import MultiLabelBinarizer
 #from embedding import Embedding, RandomEmbedding, TextEmbedding, FastTextEmbedding
 from utils import Index
@@ -132,14 +132,65 @@ class TokenSequence(FixedLengthSequenceDataset):
 '''
 class SemEval2010(torch.utils.data.Dataset):
 
-  def __init__(self, path, subset = 'train.txt', index = None, classindex = None):
+  def __init__(self, path, subset = 'train.txt', index = None, classindex = None, rclassindex = None, dclassindex = None, eclassindex = None, compact=True):
     self.path = path
     self.subset = subset
     self.index = index if index is not None else Index()
     self.classindex = classindex if classindex is not None else Index()
-    self.load()
+    self.rclassindex = rclassindex if rclassindex is not None else Index()
+    self.dclassindex = dclassindex if dclassindex is not None else Index()
+    self.eclassindex = eclassindex if eclassindex is not None else Index()
+    self.load(compact)
+    
+  def process_label(self, label):
+    rval = { 'label': label } # Product-Producer(e2,e1)
+    rval['rlabel'] = re.sub(r'\(.*$', '', label) # Product-Producer
+    rval['etypes'] = rval['rlabel'].split('-')
+    if len(rval['etypes']) < 2:
+      rval['dlabel'] = 'e1 - e2'
+      rval['e1label'] = rval['rlabel']
+      rval['e2label'] = rval['rlabel']
+    else:
+      rval['dlabel'] = re.sub(r'^[^(]+', '', label) # (e2,e1)
+      idx_e1 = rval['dlabel'].find('e1')
+      idx_e2 = rval['dlabel'].find('e2')
+      e1_first = idx_e1 < idx_e2
+      rval['e1label'] = rval['etypes'][not e1_first] # == 0
+      rval['e2label'] = rval['etypes'][e1_first] # == 1
+      rval['dlabel'] = 'e1 > e2' if e1_first else 'e1 < e2'
+    return rval
+  
+  def label_to_index(self, labelobj):
+    rval = {}
+    rval['label'] = self.classindex.add(labelobj['label'])
+    rval['rlabel'] = self.rclassindex.add(labelobj['rlabel'])
+    rval['dlabel'] = self.dclassindex.add(labelobj['dlabel'])
+    rval['e1label'] = self.eclassindex.add(labelobj['e1label'])
+    rval['e2label'] = self.eclassindex.add(labelobj['e2label'])
+    return rval
+  
+  def make_sentence_tensor(self, spacydoc):
+    
+    def transform(t):
+      if t.pos_ == 'PUNCT' or t.pos_ == 'SYM' or len(t.lemma_.strip()) < 1:
+        return None
+      if t.pos_ == 'NUM':
+        return '00#$'      
+      return t.lemma_.lower() + '#' + t.tag_[0].upper()
 
-  def load(self):
+    s = map(transform, spacydoc)
+    s = filter(lambda t : t is not None, s)
+    s = map(self.index.add, s)
+    s = list(s)
+    s.append(self.index.add('<eos>'))
+    return torch.LongTensor(s)
+
+  def pad(self, x, length, padding_value):
+    y = torch.ones((length,)).long() * padding_value
+    y[:len(x)] = x
+    return y
+
+  def load(self, compact=True):
     source_file = os.path.join(self.path, self.subset)
     processed_file = source_file + '.pkl'
     
@@ -160,34 +211,38 @@ class SemEval2010(torch.utils.data.Dataset):
           encoding='utf-8')
       samples['original_offset_e1'] = samples.originalsentence.apply(lambda s: (s.find('<e1>'), s.find('</e1>')))
       samples['original_offset_e2'] = samples.originalsentence.apply(lambda s: (s.find('<e2>'), s.find('</e2>')))
-      samples['e1'] = samples.apply(lambda row: row.originalsentence[row.original_offset_e1[0] + 4:row.original_offset_e1[1]], axis=1)
-      samples['e2'] = samples.apply(lambda row: row.originalsentence[row.original_offset_e2[0] + 4:row.original_offset_e2[1]], axis=1)
-      samples['l'] = samples.apply(lambda row: row.originalsentence[:row.original_offset_e1[0]], axis=1)
-      samples['r'] = samples.apply(lambda row: row.originalsentence[row.original_offset_e2[1]+5:], axis=1)
-      samples['m'] = samples.apply(lambda row: row.originalsentence[row.original_offset_e1[1]+5:row.original_offset_e2[0]], axis=1)
-      samples['sentence'] = samples.apply(lambda row: row.l+row.e1+row.m+row.e2+row.r, axis=1)
-      samples['offset_e1'] = samples.apply(lambda row: (len(row.l), len(row.l) + len(row.e1)), axis=1)
-      samples['offset_e2'] = samples.apply(lambda row: (len(row.l) + len(row.e1) + len(row.m), len(row.l) + len(row.e1) + len(row.m) + len(row.e2)), axis=1)
+      samples['e1'] = samples.apply(lambda row: row.originalsentence[row.original_offset_e1[0] + 4:row.original_offset_e1[1]].strip(), axis=1)
+      samples['e2'] = samples.apply(lambda row: row.originalsentence[row.original_offset_e2[0] + 4:row.original_offset_e2[1]].strip(), axis=1)
+      samples['l'] = samples.apply(lambda row: row.originalsentence[:row.original_offset_e1[0]].strip(), axis=1)
+      samples['r'] = samples.apply(lambda row: row.originalsentence[row.original_offset_e2[1]+5:].strip(), axis=1)
+      samples['m'] = samples.apply(lambda row: row.originalsentence[row.original_offset_e1[1]+5:row.original_offset_e2[0]].strip(), axis=1)
+      samples['sentence'] = samples.apply(lambda row: row.l+' '+row.e1+' '+row.m+' '+row.e2+' '+row.r, axis=1)
+      samples['sentence_placeholder'] = samples.apply(lambda row: row.l+' e1 '+row.m+' e2 '+row.r, axis=1)
+      samples['offset_e1'] = samples.apply(lambda row: (len(row.l)+1, len(row.l)+1+len(row.e1)), axis=1)
+      samples['offset_e2'] = samples.apply(lambda row: (len(row.l)+1+len(row.e1)+1+len(row.m)+1, len(row.l)+1+len(row.e1)+1+len(row.m)+1+len(row.e2)), axis=1)
       samples['spacy'] = samples.sentence.progress_apply(lambda s: nlp(s))
+      samples['spacy_placeholder'] = samples.sentence_placeholder.progress_apply(lambda s: nlp(s))
       samples.to_pickle(processed_file)
       del samples
 
     # load processed messages
     self.samples = pandas.read_pickle(processed_file)
-    self.samples['sentence_tensor'] = self.samples.spacy.apply(lambda doc: torch.LongTensor([self.index.add(t.text.strip()) for t in doc]))
-    self.samples['sentence_tensor'] = self.samples.sentence_tensor.apply(lambda t: torch.cat((t,torch.LongTensor([self.index.add('<eos>')])),0))    
+
+    self.samples['sentence_tensor'] = self.samples.spacy_placeholder.apply(self.make_sentence_tensor) # self.samples.spacy
     self.samples['sentence_length'] = self.samples.sentence_tensor.apply(lambda t: t.size(0))
     self.maxseqlen = self.samples.sentence_length.max()
     pad_val = self.index.add('<pad>')
     self.samples['sentence_tensor_padded'] = self.samples.sentence_tensor.apply(lambda t: self.pad(t, self.maxseqlen, pad_val))
-    self.samples['labelid'] = self.samples.label.apply(lambda lbl: self.classindex.add(lbl.strip()))
-
+    self.samples['sentence_recon'] = self.samples.sentence_tensor_padded.apply(lambda t: ' '.join(list(self.index[t.tolist()])))
+    self.samples['label'] = self.samples.label.apply(self.process_label)
+    self.samples['labelid'] = self.samples.label.apply(self.label_to_index)    
     self.sequences = torch.stack(self.samples.sentence_tensor_padded.tolist())
     self.sequencelengts = torch.LongTensor(self.samples.sentence_length.tolist())
-    self.labels = torch.LongTensor(self.samples.labelid.tolist())
+    self.labels = torch.LongTensor(self.samples.labelid.apply(lambda l: l['rlabel']).tolist())
     
-    del self.samples
-    
+    if compact:
+      del self.samples
+      
     return True
   
   def __len__(self):
@@ -199,11 +254,6 @@ class SemEval2010(torch.utils.data.Dataset):
     y = self.labels[index]
     return x, y, l
   
-  def pad(self, x, length, padding_value):
-    y = torch.ones((length,)).long() * padding_value
-    y[:len(x)] = x
-    return y
-
   def cpu(self):
     return self.to(torch.device('cpu'))
   
