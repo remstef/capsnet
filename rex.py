@@ -29,7 +29,7 @@ def parseSystemArgs():
   '''
   parser = argparse.ArgumentParser(description='Relation Extraction')
 #  parser.add_argument('--data', default='../data/semeval2010', type=str, help='location of the data corpus')
-  parser.add_argument('--model', default='LSTM', type=str, help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
+  parser.add_argument('--rnntype', default='LSTM', type=str, help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
   parser.add_argument('--optim', default='SGD', type=str, help='type of optimizer (SGD, Adam, ASGD, SimpleSGD)')
   parser.add_argument('--emsize', default=200, type=int, help='size of word embeddings')
   parser.add_argument('--nhid', default=200, type=int, help='number of hidden units per layer')
@@ -113,29 +113,54 @@ def loadData(args):
   return args
 
 def buildModel(args):
+  '''
+  Build the model, processing function for one batch and loss criterion
+  '''
 
-  model = nets.rnn.RNN_CLASSIFY_linear(
+  model = nets.rnn.RNN_CLASSIFY_simple(
       ntoken = args.ntoken,
       nhid = args.nhid, 
       nclasses = args.nclasses
       ).to(args.device)
-
+  
   criterion = torch.nn.NLLLoss() #CrossEntropyLoss # NLLLoss
+  
+  #############################################################################
+  # process one batch with the model
+  #############################################################################
 
+  def process(batch_data):
+    x_batch, y_batch, seqlengths, hidden_before, is_training = batch_data
+    x_batch_one_hot = utils.makeOneHot(x_batch, args.ntoken)
+    x_batch_one_hot = x_batch_one_hot.transpose(0,1) # switch dim 0 with dim 1 => x_batch_one_hot = seqlen x batch x ntoken
+
+    hidden = model.init_hidden(x_batch_one_hot.size(1))
+
+    for i in range(x_batch_one_hot.size(0)):
+      outputs, hidden = model(x_batch_one_hot[i], hidden)
+
+    loss = criterion(outputs, y_batch)    
+    
+    return loss, (outputs, hidden)
+  
+  print(model)
+  print(criterion)
+  
+  setattr(args, 'model', model)
+  setattr(args, 'modelprocessfun', process)
+  setattr(args, 'criterion', criterion)
+  
+  return args
+
+def getOptimizer(args):
   if args.optim == 'SimpleSGD':
     Optimizer__ = utils.SimpleSGD
   elif not args.optim in ['Adam', 'ASGD', 'SGD']:
     raise ValueError( '''Invalid option `%s` for 'optimizer' was supplied.''' % args.optim)
   else:
     Optimizer__ = getattr(torch.optim, args.optim)
-  optimizer = utils.createWrappedOptimizerClass(Optimizer__)(model.parameters(), lr =args.lr, clip=None, weight_decay=args.wdecay)
+  optimizer = utils.createWrappedOptimizerClass(Optimizer__)(args.model.parameters(), lr =args.lr, clip=None, weight_decay=args.wdecay)  
 
-  print(model)
-  print(criterion)
-  print(optimizer)
-  
-  setattr(args, 'model', model)
-  setattr(args, 'criterion', criterion)
   setattr(args, 'optimizer', optimizer)
   
   return args
@@ -176,28 +201,6 @@ def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, tra
 
 def getpredictions(batch_logprobs):
   return batch_logprobs.max(dim=1)[1]  
-
-###############################################################################
-# Functions which process one batch
-###############################################################################
-def getprocessfun(args):
-  model = args.model
-  
-  def process(batch_data):
-    x_batch, y_batch, seqlengths, hidden_before, is_training = batch_data
-    x_batch_one_hot = utils.makeOneHot(x_batch, args.ntoken)
-    x_batch_one_hot = x_batch_one_hot.transpose(0,1) # switch dim 0 with dim 1 => x_batch_one_hot = seqlen x batch x ntoken
-
-    hidden = model.init_hidden(x_batch_one_hot.size(1))
-
-    for i in range(x_batch_one_hot.size(0)):
-      outputs, hidden = model(x_batch_one_hot[i], hidden)
-
-    loss = args.criterion(outputs, y_batch)    
-    
-    return loss, (outputs, hidden)
-  
-  return process
 
 ###############################################################################
 # Run in Pipeline mode
@@ -261,7 +264,8 @@ def pipeline(args):
   ###
   # Run pipeline
   ###
-  process = getprocessfun(args)
+  #process = getprocessfun(args)
+  process = args.modelprocessfun
   
   for epoch in range(args.epochs):
     epoch_start_time = time.time()
@@ -336,7 +340,8 @@ def engine(args):
     # run training
     ###########################################################################
 
-    process = getprocessfun(args)
+    #process = getprocessfun(args)
+    process = args.modelprocessfun
     model = args.model
     
     engine.train(process, args.trainloader, maxepoch=args.epochs, optimizer=args.optimizer)
@@ -349,6 +354,7 @@ if __name__ == '__main__':
     args = parseSystemArgs()
     args = loadData(args)
     args = buildModel(args)  
+    args = getOptimizer(args)
     
     if args.engine:
       print('Running in torchnet engine.')

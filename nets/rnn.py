@@ -182,7 +182,7 @@ class RNN_CLASSIFY_simple(torch.nn.Module):
   '''
   inspired by https://discuss.pytorch.org/t/lstm-for-many-to-one-multiclass-classification-problem/14268/5
   '''
-  def __init__(self, ntoken, nhid, nlayers, nclasses):
+  def __init__(self, ntoken, nhid, nlayers, nclasses, *args, **kwargs):
     super(RNN_CLASSIFY_simple, self).__init__()
     self.ntoken = ntoken
     self.nhid = nhid
@@ -207,7 +207,7 @@ class RNN_CLASSIFY_linear(torch.nn.Module):
   '''
    taken from https://pytorch.org/tutorials/intermediate/char_rnn_classification_tutorial.html
   '''    
-  def __init__(self, ntoken, nhid, nclasses):
+  def __init__(self, ntoken, nhid, nclasses, *args, **kwargs):
     super(RNN_CLASSIFY_linear, self).__init__()
     self.ntoken = ntoken
     self.nhid = nhid

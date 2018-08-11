@@ -169,26 +169,39 @@ class SemEval2010(torch.utils.data.Dataset):
     rval['e2label'] = self.eclassindex.add(labelobj['e2label'])
     return rval
   
-  def make_sentence_tensor(self, spacydoc):
+  def make_sentence_tensor(self, row, append_eos = True, use_placeholders = True):
+    doc = row.spacy
+    if use_placeholders:
+      doc = list(doc[:row.offset_spacy_e1[0]]) + ['e1'] + list(doc[row.offset_spacy_e1[1]:row.offset_spacy_e2[0]]) + ['e2'] + list(doc[row.offset_spacy_e2[1]:])
     
     def transform(t):
+      if isinstance(t, str):
+        return t
       if t.pos_ == 'PUNCT' or t.pos_ == 'SYM' or len(t.lemma_.strip()) < 1:
         return None
       if t.pos_ == 'NUM':
         return '00#$'      
       return t.lemma_.lower() + '#' + t.tag_[0].upper()
 
-    s = map(transform, spacydoc)
+    s = map(transform, doc)
     s = filter(lambda t : t is not None, s)
     s = map(self.index.add, s)
     s = list(s)
-    s.append(self.index.add('<eos>'))
+    if append_eos:
+      s.append(self.index.add('<eos>'))
     return torch.LongTensor(s)
 
   def pad(self, x, length, padding_value):
     y = torch.ones((length,)).long() * padding_value
     y[:len(x)] = x
     return y
+  
+  def get_spacy_offsets(self, row, col):
+    doc = row.spacy
+    # offsets e1, e2
+    b = next((t.i for t in doc if t.idx >= row[col][0]), None)
+    e = next((t.i for t in doc if t.idx >= row[col][1]), None)
+    return (b, e)
 
   def load(self, compact=True):
     source_file = os.path.join(self.path, self.subset)
@@ -206,7 +219,7 @@ class SemEval2010(torch.utils.data.Dataset):
           sep='\t',
           delim_whitespace = False,
           quoting=csv.QUOTE_MINIMAL,
-          names=['id', 'originalsentence', 'label', 'comment'],
+          names=['id', 'originalsentence', 'labels', 'comment'],
           skip_blank_lines=True,
           encoding='utf-8')
       samples['original_offset_e1'] = samples.originalsentence.apply(lambda s: (s.find('<e1>'), s.find('</e1>')))
@@ -221,38 +234,38 @@ class SemEval2010(torch.utils.data.Dataset):
       samples['offset_e1'] = samples.apply(lambda row: (len(row.l)+1, len(row.l)+1+len(row.e1)), axis=1)
       samples['offset_e2'] = samples.apply(lambda row: (len(row.l)+1+len(row.e1)+1+len(row.m)+1, len(row.l)+1+len(row.e1)+1+len(row.m)+1+len(row.e2)), axis=1)
       samples['spacy'] = samples.sentence.progress_apply(lambda s: nlp(s))
-      samples['spacy_placeholder'] = samples.sentence_placeholder.progress_apply(lambda s: nlp(s))
       samples.to_pickle(processed_file)
       del samples
 
     # load processed messages
     self.samples = pandas.read_pickle(processed_file)
-
-    self.samples['sentence_tensor'] = self.samples.spacy_placeholder.apply(self.make_sentence_tensor) # self.samples.spacy
+    self.samples['offset_spacy_e1']= self.samples.apply(lambda r: self.get_spacy_offsets(r, 'offset_e1'), axis=1)
+    self.samples['offset_spacy_e2']= self.samples.apply(lambda r: self.get_spacy_offsets(r, 'offset_e2'), axis=1)    
+    self.samples['sentence_tensor'] = self.samples.apply(self.make_sentence_tensor, axis=1)
     self.samples['sentence_length'] = self.samples.sentence_tensor.apply(lambda t: t.size(0))
     self.maxseqlen = self.samples.sentence_length.max()
     pad_val = self.index.add('<pad>')
     self.samples['sentence_tensor_padded'] = self.samples.sentence_tensor.apply(lambda t: self.pad(t, self.maxseqlen, pad_val))
     self.samples['sentence_recon'] = self.samples.sentence_tensor_padded.apply(lambda t: ' '.join(list(self.index[t.tolist()])))
-    self.samples['label'] = self.samples.label.apply(self.process_label)
-    self.samples['labelid'] = self.samples.label.apply(self.label_to_index)    
-    self.sequences = torch.stack(self.samples.sentence_tensor_padded.tolist())
-    self.sequencelengts = torch.LongTensor(self.samples.sentence_length.tolist())
-    self.labels = torch.LongTensor(self.samples.labelid.apply(lambda l: l['rlabel']).tolist())
-    
-    if compact:
-      del self.samples
-      
+    self.samples['labels'] = self.samples.labels.apply(self.process_label)
+    self.samples['labelids'] = self.samples.labels.apply(self.label_to_index)
+
+
+#    self.sequences = torch.stack(self.samples.sentence_tensor_padded.tolist())
+#    self.sequencelengts = torch.LongTensor(self.samples.sentence_length.tolist())
+
+          
     return True
   
   def __len__(self):
     return self.labels.size(0)
 
   def __getitem__(self, index):
-    x = self.sequences[index]
-    l = self.sequencelengts[index]
-    y = self.labels[index]
-    return x, y, l
+    row = self.samples.iloc[index]
+    s = row.sentence_tensor_padded
+    sl = row.sentence_length
+    
+    return s, sl, left, e1, mid, e2, right, label, e1label, e2label, rlabel, dlabel
   
   def cpu(self):
     return self.to(torch.device('cpu'))
@@ -261,11 +274,11 @@ class SemEval2010(torch.utils.data.Dataset):
     return self.to(torch.device('cuda'))
   
   def to(self, device):
-    self.sequences = self.sequences.to(device)
-    self.sequencelengts = self.sequencelengts.to(device)
-    self.labels = self.labels.to(device)
+#    self.sequences = self.sequences.to(device)
+#    self.sequencelengts = self.sequencelengts.to(device)
+#    self.labels = self.labels.to(device)
     return self
-  
+
 
 class SpamDataset(torch.utils.data.Dataset):
 
