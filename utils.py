@@ -200,7 +200,7 @@ class EvenlyDistributingSampler(torch.utils.data.sampler.BatchSampler):
       
 class SimpleSGD(torch.optim.Optimizer):
 
-  def __init__(self, params, lr=requiredParam):
+  def __init__(self, params, *args, lr=requiredParam, **kwargs):
     if lr is not requiredParam and lr < 0.0:
       raise ValueError('Invalid learning rate: {}'.format(lr))
     defaults = dict(lr=lr)

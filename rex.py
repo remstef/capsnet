@@ -119,7 +119,9 @@ def buildModel(args):
       nhid = args.nhid, 
       nclasses = args.nclasses
       ).to(args.device)
-  criterion = torch.nn.NLLLoss() # CrossEntropyLoss()
+
+  criterion = torch.nn.NLLLoss() #CrossEntropyLoss # NLLLoss
+
   if args.optim == 'SimpleSGD':
     Optimizer__ = utils.SimpleSGD
   elif not args.optim in ['Adam', 'ASGD', 'SGD']:
