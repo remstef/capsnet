@@ -30,7 +30,7 @@ def parseSystemArgs():
   parser = argparse.ArgumentParser(description='Relation Extraction')
 #  parser.add_argument('--data', default='../data/semeval2010', type=str, help='location of the data corpus')
   parser.add_argument('--model', default='LSTM', type=str, help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
-  parser.add_argument('--optimizer', default='SGD', type=str, help='type of optimizer (SGD, Adam, ASGD, SimpleSGD)')
+  parser.add_argument('--optim', default='SGD', type=str, help='type of optimizer (SGD, Adam, ASGD, SimpleSGD)')
   parser.add_argument('--emsize', default=200, type=int, help='size of word embeddings')
   parser.add_argument('--nhid', default=200, type=int, help='number of hidden units per layer')
   parser.add_argument('--nlayers', default=2, type=int, help='number of layers')
@@ -120,12 +120,12 @@ def buildModel(args):
       nclasses = args.nclasses
       ).to(args.device)
   criterion = torch.nn.NLLLoss() # CrossEntropyLoss()
-  if args.optimizer == 'SimpleSGD':
+  if args.optim == 'SimpleSGD':
     Optimizer__ = utils.SimpleSGD
-  elif not args.optimizer in ['Adam', 'ASGD', 'SGD']:
-    raise ValueError( '''Invalid option `%s` for 'optimizer' was supplied.''' % args.optimizer)
+  elif not args.optim in ['Adam', 'ASGD', 'SGD']:
+    raise ValueError( '''Invalid option `%s` for 'optimizer' was supplied.''' % args.optim)
   else:
-    Optimizer__ = getattr(torch.optim, args.optimizer)
+    Optimizer__ = getattr(torch.optim, args.optim)
   optimizer = utils.createWrappedOptimizerClass(Optimizer__)(model.parameters(), lr =args.lr, clip=None, weight_decay=args.wdecay)
 
   print(model)
