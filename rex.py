@@ -113,12 +113,12 @@ def loadData(args):
   args.rclassindex = rclassindex
   args.dclassindex = dclassindex
   args.eclassindex = eclassindex
-  args.ntoken = len(eindex)
-  args.nclasses = len(eclassindex)
+  args.ntoken = len(index)
+  args.nclasses = len(classindex)
   args.trainloader = train_loader
   args.testloader = test_loader
   args.preembweights = preemb_weights
-  args.confusion_meter = torchnet.meter.ConfusionMeter(len(eclassindex), normalized=True)
+  args.confusion_meter = torchnet.meter.ConfusionMeter(len(classindex), normalized=True)
 
   return args
 
@@ -143,9 +143,9 @@ def buildModel(args):
     
     seq, seqlen, oleft, omid, oright, seq_e1, seqlen_e1, seq_e2, seqlen_e2, label, e1label, e2label, rlabel, dlabel, h, train = batch_data
     
-    x_batch_one_hot = utils.makeOneHot(seq_e1, args.ntoken)
+    x_batch_one_hot = utils.makeOneHot(seq, args.ntoken)
     x_batch_one_hot = x_batch_one_hot.transpose(0,1) # switch dim 0 with dim 1 => x_batch_one_hot = seqlen x batch x ntoken
-    targets = e1label
+    targets = label
 
     hidden = model.init_hidden(x_batch_one_hot.size(1))
 
