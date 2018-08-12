@@ -282,7 +282,7 @@ class SemEval2010(torch.utils.data.Dataset):
 
   def __getitem__(self, index):
     r = self.samples.iloc[index]
-    s = r.seq
+    s = r.seq.to(self.device)
     sl = r.seqlen
     
     # left, right and middle as indices (from,to)
@@ -295,9 +295,9 @@ class SemEval2010(torch.utils.data.Dataset):
 #    right = s[r.e2_in_seq[-1]+1:] if len(r.e2_in_seq) > 0 else self.emptyseq
 #    mid   = s[r.e1_in_seq[-1]+1:r.e2_in_seq[0]] if len(r.e2_in_seq) > 0 else s[r.e1_in_seq[-1]+1:] if len(r.e1_in_seq) else self.emptyseq
     
-    e1 = r.seq_e1
+    e1 = r.seq_e1.to(self.device)
     e1_len = r.seqlen_e1
-    e2 = r.seq_e2
+    e2 = r.seq_e2.to(self.device)
     e2_len = r.seqlen_e2
     
     label = r.labelids.label
