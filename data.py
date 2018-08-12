@@ -310,7 +310,7 @@ class SemEval2010(torch.utils.data.Dataset):
     
     d = self.deviceTensor
     
-    return d.new(s), d.new(sl), d.new(left), d.new(mid), d.new(right), d.new(e1), d.new(e1_len), d.new(e2), d.new(e2_len), d.new(label), d.new(e1label), d.new(e2label), d.new(rlabel), d.new(dlabel)
+    return d.new_tensor(s), d.new_tensor(sl), d.new_tensor(left), d.new_tensor(mid), d.new_tensor(right), d.new_tensor(e1), d.new_tensor(e1_len), d.new_tensor(e2), d.new_tensor(e2_len), d.new_tensor(label), d.new_tensor(e1label), d.new_tensor(e2label), d.new_tensor(rlabel), d.new_tensor(dlabel)
   
   def cpu(self):
     return self.to(torch.device('cpu'))
