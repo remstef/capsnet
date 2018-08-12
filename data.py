@@ -306,7 +306,7 @@ class SemEval2010(torch.utils.data.Dataset):
     return self.to(torch.device('cuda'))
   
   def to(self, device):
-    print("Impossible to switch device! Whatever you'll do, I'll stay on CPU!")
+    print("Impossible to switch device! Whatever you're sayin, I stay on CPU!")
     return self
   
 
