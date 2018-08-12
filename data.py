@@ -277,27 +277,35 @@ class SemEval2010(torch.utils.data.Dataset):
     return True
   
   def __len__(self):
-    return self.labels.size(0)
+    return self.samples.shape[0]
 
   def __getitem__(self, index):
     r = self.samples.iloc[index]
     s = r.seq
     sl = r.seqlen
-    left  = s[:r.e1_in_seq[0]] if len(r.e1_in_seq) > 0 else s
-    right = s[r.e2_in_seq[-1]+1:] if len(r.e2_in_seq) > 0 else self.emptyseq
-    mid   = s[r.e1_in_seq[-1]+1:r.e2_in_seq[0]] if len(r.e2_in_seq) > 0 else s[r.e1_in_seq[-1]+1:] if len(r.e1_in_seq) else self.emptyseq
-    e1 = s.seq_e1
-    e2 = s.seq_e2
-    label = r.labels.label
-    e1label = r.labels.e1label
-    e2label = r.labels.e2label
-    rlabel = r.labels.rlabel
-    dlabel = r.labels.dlabel
     
-#    e1 = s[r.e1_in_seq] if len(r.e1_in_seq) > 0 else self.emptyseq
-#    e2 = s[r.e2_in_seq] if len(r.e2_in_seq) > 0 else self.emptyseq
+    # left, right and middle as indices (from,to)
+    left = torch.LongTensor([0, r.e1_in_seq[0] if len(r.e1_in_seq) > 0 else -1])
+    right = torch.LongTensor([r.e2_in_seq[-1]+1 if len(r.e2_in_seq) > 0 else -1 , -1])
+    mid = torch.LongTensor([r.e1_in_seq[-1]+1 if len(r.e1_in_seq) > 0 else -1, 
+                            r.e2_in_seq[0] if len(r.e1_in_seq) > 0 and len(r.e2_in_seq) > 0 else -1])
     
-    return s, sl, left, e1, mid, e2, right, label, e1label, e2label, rlabel, dlabel
+#    left  = s[:r.e1_in_seq[0]] if len(r.e1_in_seq) > 0 else s
+#    right = s[r.e2_in_seq[-1]+1:] if len(r.e2_in_seq) > 0 else self.emptyseq
+#    mid   = s[r.e1_in_seq[-1]+1:r.e2_in_seq[0]] if len(r.e2_in_seq) > 0 else s[r.e1_in_seq[-1]+1:] if len(r.e1_in_seq) else self.emptyseq
+    
+    e1 = r.seq_e1
+    e1_len = r.seqlen_e1
+    e2 = r.seq_e2
+    e2_len = r.seqlen_e2
+    
+    label = r.labelids.label
+    e1label = r.labelids.e1label
+    e2label = r.labelids.e2label
+    rlabel = r.labelids.rlabel
+    dlabel = r.labelids.dlabel  
+    
+    return s, sl, left, mid, right, e1, e1_len, e2, e2_len, label, e1label, e2label, rlabel, dlabel
   
   def cpu(self):
     return self.to(torch.device('cpu'))
@@ -306,7 +314,7 @@ class SemEval2010(torch.utils.data.Dataset):
     return self.to(torch.device('cuda'))
   
   def to(self, device):
-    print("Impossible to switch device! Whatever you're sayin, I stay on CPU!")
+    print(f"Impossible to switch device! Whatever you're sayin, I stay on CPU! Sincerely yours, {self.__class__.__name__:s}.")
     return self
   
 

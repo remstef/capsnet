@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# -*- coding: utf-8 -*-
-
-# coding: utf-8
-
 import sys
 if not '..' in sys.path: sys.path.append('..')
 
@@ -39,7 +35,7 @@ def parseSystemArgs():
   parser.add_argument('--wdecay', default=1.2e-6, type=float, help='weight decay applied to all weights')
   parser.add_argument('--clip', default=0.25, type=float, help='gradient clipping')
   parser.add_argument('--epochs', default=40, type=int, help='upper epoch limit')
-  parser.add_argument('--batch-size', default=20, type=int, metavar='N', help='batch size') 
+  parser.add_argument('--batch-size', default=50, type=int, metavar='N', help='batch size') 
   parser.add_argument('--dropout', default=0.2, type=float, help='dropout applied to layers (0 = no dropout)')
   parser.add_argument('--seed', default=1111, type=int, help='random seed')
   parser.add_argument('--log-interval', default=200, type=int, metavar='N', help='report interval')
@@ -48,7 +44,7 @@ def parseSystemArgs():
   parser.add_argument('--chars', action='store_true', help='use character sequences instead of token sequences')
   parser.add_argument('--shuffle-batches', action='store_true', help='shuffle batches')
   parser.add_argument('--shuffle-samples', action='store_true', help='shuffle samples')
-  parser.add_argument('--sequential-sampling', action='store_true', help='use samples and batches sequentially.')
+  parser.add_argument('--distr-samples', action='store_true', help='distribute samples within batches evenly over time.')
   parser.add_argument('--cuda', action='store_true', help='use CUDA')
   parser.add_argument('--engine', action='store_true', help='use torchnet engine for traininge and testing.')
   args = parser.parse_args()
@@ -92,7 +88,7 @@ def loadData(args):
     preemb_weights = None
   
   __ItemSampler = RandomSampler if args.shuffle_samples else SequentialSampler
-  __BatchSampler = BatchSampler if args.sequential_sampling else utils.EvenlyDistributingSampler  
+  __BatchSampler = utils.EvenlyDistributingSampler if args.distr_samples else BatchSampler
   train_loader = torch.utils.data.DataLoader(trainset, batch_sampler = utils.ShufflingBatchSampler(__BatchSampler(__ItemSampler(trainset), batch_size=args.batch_size, drop_last = True), shuffle = args.shuffle_batches, seed = args.seed), num_workers = 0)
   test_loader = torch.utils.data.DataLoader(testset, batch_sampler = __BatchSampler(__ItemSampler(testset), batch_size=args.batch_size, drop_last = True), num_workers = 0)
 
@@ -117,7 +113,7 @@ def buildModel(args):
   Build the model, processing function for one batch and loss criterion
   '''
 
-  model = nets.rnn.RNN_CLASSIFY_simple(
+  model = nets.rnn.RNN_CLASSIFY_linear(
       ntoken = args.ntoken,
       nhid = args.nhid, 
       nclasses = args.nclasses
@@ -130,18 +126,22 @@ def buildModel(args):
   #############################################################################
 
   def process(batch_data):
-    x_batch, y_batch, seqlengths, hidden_before, is_training = batch_data
-    x_batch_one_hot = utils.makeOneHot(x_batch, args.ntoken)
+    
+    seq, seqlen, oleft, omid, oright, seq_e1, seqlen_e1, seq_e2, seqlen_e2, label, e1label, e2label, rlabel, dlabel, h, train = batch_data
+    
+    x_batch_one_hot = utils.makeOneHot(seq, args.ntoken)
     x_batch_one_hot = x_batch_one_hot.transpose(0,1) # switch dim 0 with dim 1 => x_batch_one_hot = seqlen x batch x ntoken
+    targets = rlabel
 
     hidden = model.init_hidden(x_batch_one_hot.size(1))
 
     for i in range(x_batch_one_hot.size(0)):
       outputs, hidden = model(x_batch_one_hot[i], hidden)
 
-    loss = criterion(outputs, y_batch)    
+    loss = criterion(outputs, targets)
     
-    return loss, (outputs, hidden)
+    predictions = getpredictions(outputs.data)
+    return loss, (outputs, predictions, targets, hidden)
   
   print(model)
   print(criterion)
@@ -166,9 +166,9 @@ def getOptimizer(args):
   return args
 
 def message_status_interval(message, epoch, max_epoch, batch_i, nbatches, batch_start_time, log_interval, train_loss_interval, predictions, targets):
-  p = sklearn.metrics.precision_score(targets, predictions, average='micro')
-  r = sklearn.metrics.recall_score(targets, predictions, average='micro')
-  f = sklearn.metrics.f1_score(targets, predictions, average='micro')
+  p = sklearn.metrics.precision_score(targets, predictions, average='macro')
+  r = sklearn.metrics.recall_score(targets, predictions, average='macro')
+  f = sklearn.metrics.f1_score(targets, predictions, average='macro')
   a = sklearn.metrics.accuracy_score(targets, predictions)
   return '| epoch {:3d} / {:3d} | batch {:5d} / {:5d} | ms/batch {:5.2f} | loss {:5.2f} | {:4.2f}/{:4.2f}/{:4.2f}/{:4.2f}'.format(
       epoch,
@@ -180,9 +180,9 @@ def message_status_interval(message, epoch, max_epoch, batch_i, nbatches, batch_
       p,r,f,a)
 
 def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, train_loss, test_loss, predictions, targets):
-  p = sklearn.metrics.precision_score(targets, predictions, average='micro')
-  r = sklearn.metrics.recall_score(targets, predictions, average='micro')
-  f = sklearn.metrics.f1_score(targets, predictions, average='micro')
+  p = sklearn.metrics.precision_score(targets, predictions, average='macro')
+  r = sklearn.metrics.recall_score(targets, predictions, average='macro')
+  f = sklearn.metrics.f1_score(targets, predictions, average='macro')
   a = sklearn.metrics.accuracy_score(targets, predictions)
   return '''\
 ++ Epoch {:03d} took {:06.2f}s (lr {:5.{lrprec}f}) ++ {:s}
@@ -220,12 +220,12 @@ def pipeline(args):
       for batch, batch_data in enumerate(tqdm(dloader, ncols=89, desc = 'Test ')):   
         batch_data.append(hidden)
         batch_data.append(False)
-        loss, (outputs, hidden) = process(batch_data)
+        loss, (outputs, predictions_, targets_, hidden) = process(batch_data)
         # keep track of some scores
         total_loss += args.batch_size * loss.item()
         args.confusion_meter.add(outputs.data, batch_data[1])
-        predictions.extend(getpredictions(outputs.data).tolist())
-        targets.extend(batch_data[1].tolist())
+        predictions.extend(predictions_.tolist())
+        targets.extend(targets_.tolist())
         
     test_loss = total_loss / (len(dloader) * args.batch_size )
     return test_loss, predictions, targets
@@ -244,15 +244,16 @@ def pipeline(args):
     for batch, batch_data in enumerate(tqdm(args.trainloader, ncols=89, desc='Train')):
       batch_start_time = time.time()
       model.zero_grad()
-      loss, (outputs, hidden) = process(batch_data + [hidden, True])
+      loss, (outputs, predictions_, targets_, hidden) = process(batch_data + [hidden, True])
       loss.backward()
       args.optimizer.step()
       # track some scores
       train_loss += loss.item()
       interval_loss += loss.item()
-      args.confusion_meter.add(outputs.data, batch_data[1])
-      predictions.extend(getpredictions(outputs.data).tolist())
-      targets.extend(batch_data[1].tolist())
+      
+      args.confusion_meter.add(outputs.data, targets_)
+      predictions.extend(predictions_.tolist())
+      targets.extend(targets_.tolist())
   
       if batch % args.log_interval == 0 and batch > 0:
         cur_loss = train_loss / args.log_interval
@@ -264,7 +265,6 @@ def pipeline(args):
   ###
   # Run pipeline
   ###
-  #process = getprocessfun(args)
   process = args.modelprocessfun
   
   for epoch in range(args.epochs):
@@ -277,6 +277,8 @@ def pipeline(args):
 # Run in Engine mode
 ###############################################################################
 def engine(args):
+  
+    raise NotImplementedError('This method is not in sync with the pipeline method and throws errors.')
 
     ###########################################################################
     # Set up Engine
@@ -340,7 +342,6 @@ def engine(args):
     # run training
     ###########################################################################
 
-    #process = getprocessfun(args)
     process = args.modelprocessfun
     model = args.model
     
