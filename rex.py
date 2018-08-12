@@ -55,19 +55,29 @@ def parseSystemArgs():
     if not args.cuda:
       print('WARNING: You have a CUDA device, so you should probably run with --cuda')
 
-  device = torch.device('cuda' if args.cuda else 'cpu')
-  setattr(args, 'device', device)
+  args.device = torch.device('cuda' if args.cuda else 'cpu')
 
   return args
 
 
 def loadData(args):
   index = utils.Index(initwords = ['<unk>'], unkindex = 0)
-  classindex =utils.Index()
-  trainset = data.SemEval2010('data/semeval2010/', subset='train.txt', index = index, classindex = classindex).to(args.device)
-  index.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'vocab_chars.txt' if args.chars else 'vocab_tokens.txt'))
+  eindex = utils.Index(initwords = ['<unk>'], unkindex = 0)
+  classindex = utils.Index()
+  eclassindex = utils.Index()
+  rclassindex = utils.Index()
+  dclassindex = utils.Index()    
+  
+  trainset = data.SemEval2010('data/semeval2010/', subset='train.txt', index = index, eindex=eindex, classindex = classindex, rclassindex = rclassindex, dclassindex = dclassindex, eclassindex = eclassindex).to(args.device)
+  
+  index.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'vocab.txt'))
+  eindex.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'vocab-entities.txt'))
   classindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes.txt'))
-  testset = data.SemEval2010('data/semeval2010/', subset='test.txt', index = index).to(args.device)
+  rclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-rel.txt'))
+  dclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-direction.txt'))
+  eclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-entity.txt'))
+  
+  testset = data.SemEval2010('data/semeval2010/', subset='test.txt', index = index, eindex=eindex, classindex = classindex, rclassindex = rclassindex, dclassindex = dclassindex, eclassindex = eclassindex).to(args.device)
   
   # load pre embedding
   if args.init_weights:
@@ -96,15 +106,19 @@ def loadData(args):
   print(__BatchSampler.__name__)
   print('Shuffle training batches: ', args.shuffle_batches)
 
-  setattr(args, 'maxseqlen', trainset.maxseqlen)
-  setattr(args, 'index', index)
-  setattr(args, 'classindex', classindex)
-  setattr(args, 'ntoken', len(index))
-  setattr(args, 'nclasses', len(classindex))
-  setattr(args, 'trainloader', train_loader)
-  setattr(args, 'testloader', test_loader)
-  setattr(args, 'preembweights', preemb_weights)
-  setattr(args, 'confusion_meter', torchnet.meter.ConfusionMeter(len(classindex), normalized=True))
+  args.maxseqlen = trainset.maxseqlen
+  args.index = index
+  args.eindex = eindex
+  args.classindex = classindex
+  args.rclassindex = rclassindex
+  args.dclassindex = dclassindex
+  args.eclassindex = eclassindex
+  args.ntoken = len(index)
+  args.nclasses = len(classindex)
+  args.trainloader = train_loader
+  args.testloader = test_loader
+  args.preembweights = preemb_weights
+  args.confusion_meter = torchnet.meter.ConfusionMeter(len(classindex), normalized=True)
 
   return args
 
@@ -146,9 +160,9 @@ def buildModel(args):
   print(model)
   print(criterion)
   
-  setattr(args, 'model', model)
-  setattr(args, 'modelprocessfun', process)
-  setattr(args, 'criterion', criterion)
+  args.model = model
+  args.modelprocessfun = process
+  args.criterion = criterion
   
   return args
 
@@ -161,7 +175,7 @@ def getOptimizer(args):
     Optimizer__ = getattr(torch.optim, args.optim)
   optimizer = utils.createWrappedOptimizerClass(Optimizer__)(args.model.parameters(), lr =args.lr, clip=None, weight_decay=args.wdecay)  
 
-  setattr(args, 'optimizer', optimizer)
+  args.optimizer = optimizer
   
   return args
 

@@ -130,13 +130,14 @@ class TokenSequence(FixedLengthSequenceDataset):
 '''
 class SemEval2010(torch.utils.data.Dataset):
 
-  def __init__(self, path, subset = 'train.txt', nlines=None, maxseqlen=None, index = None, classindex = None, rclassindex = None, dclassindex = None, eclassindex = None, compact=True):
+  def __init__(self, path, subset = 'train.txt', nlines=None, maxseqlen=None, index = None, eindex = None, classindex = None, rclassindex = None, dclassindex = None, eclassindex = None, compact=True):
     self.path = path
     self.subset = subset
     self.maxseqlen = maxseqlen
     self.index = index if index is not None else Index()
     self.eosidx = self.index.add('<eos>')
     self.padidx = self.index.add('<pad>')
+    self.eindex = eindex if eindex is not None else Index()
     self.epadidx = self.index.add('<epad>')
     self.classindex = classindex if classindex is not None else Index()
     self.rclassindex = rclassindex if rclassindex is not None else Index()
@@ -187,7 +188,7 @@ class SemEval2010(torch.utils.data.Dataset):
   def make_entity_tensor(self, e, use_chars = False):
     e = e.strip().split(' ')
     e = map(str.strip, e)
-    e = map(self.index.add, e)
+    e = map(self.eindex.add, e)
     e = list(e)
     return torch.LongTensor(e)
 
@@ -292,10 +293,6 @@ class SemEval2010(torch.utils.data.Dataset):
     right = torch.LongTensor([r.e2_in_seq[-1]+1 if len(r.e2_in_seq) > 0 else -1 , -1])
     mid = torch.LongTensor([r.e1_in_seq[-1]+1 if len(r.e1_in_seq) > 0 else -1, 
                             r.e2_in_seq[0] if len(r.e1_in_seq) > 0 and len(r.e2_in_seq) > 0 else -1])
-    
-#    left  = s[:r.e1_in_seq[0]] if len(r.e1_in_seq) > 0 else s
-#    right = s[r.e2_in_seq[-1]+1:] if len(r.e2_in_seq) > 0 else self.emptyseq
-#    mid   = s[r.e1_in_seq[-1]+1:r.e2_in_seq[0]] if len(r.e2_in_seq) > 0 else s[r.e1_in_seq[-1]+1:] if len(r.e1_in_seq) else self.emptyseq
     
     e1 = r.seq_e1
     e1_len = r.seqlen_e1
