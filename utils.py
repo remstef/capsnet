@@ -11,6 +11,16 @@ import torch.utils.data
 
 requiredParam = object()
 
+class AttributeHolder(object):
+  def __init__(self, **kwargs):
+    [ self.__setitem__(k,v) for k,v in kwargs.items() ]
+  def __repr__(self):
+    return f'{self.__class__.__name__:s}({self.__dict__.__repr__():s})'
+  def __setitem__(self, key, value):
+    return setattr(self, key, value)
+  def __getitem__(self, key):
+    return getattr(self, key)
+
 class Index(object):
   
   def __init__(self, initwords = [], unkindex = None):
