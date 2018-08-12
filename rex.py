@@ -223,7 +223,7 @@ def pipeline(args):
         loss, (outputs, predictions_, targets_, hidden) = process(batch_data)
         # keep track of some scores
         total_loss += args.batch_size * loss.item()
-        args.confusion_meter.add(outputs.data, batch_data[1])
+        args.confusion_meter.add(outputs.data, targets_)
         predictions.extend(predictions_.tolist())
         targets.extend(targets_.tolist())
         
