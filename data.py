@@ -145,6 +145,7 @@ class SemEval2010(torch.utils.data.Dataset):
     self.emptyseq = torch.zeros(0).long()
     self.maxentlen = None
     self.load(nlines, compact)
+    self.device = torch.device('cpu')
     
   def process_label(self, label):
     rval = AttributeHolder(label = label) # Product-Producer(e2,e1)
@@ -285,10 +286,10 @@ class SemEval2010(torch.utils.data.Dataset):
     sl = r.seqlen
     
     # left, right and middle as indices (from,to)
-    left = torch.LongTensor([0, r.e1_in_seq[0] if len(r.e1_in_seq) > 0 else -1])
-    right = torch.LongTensor([r.e2_in_seq[-1]+1 if len(r.e2_in_seq) > 0 else -1 , -1])
+    left = torch.LongTensor([0, r.e1_in_seq[0] if len(r.e1_in_seq) > 0 else -1]).to(self.device)
+    right = torch.LongTensor([r.e2_in_seq[-1]+1 if len(r.e2_in_seq) > 0 else -1 , -1]).to(self.device)
     mid = torch.LongTensor([r.e1_in_seq[-1]+1 if len(r.e1_in_seq) > 0 else -1, 
-                            r.e2_in_seq[0] if len(r.e1_in_seq) > 0 and len(r.e2_in_seq) > 0 else -1])
+                            r.e2_in_seq[0] if len(r.e1_in_seq) > 0 and len(r.e2_in_seq) > 0 else -1]).to(self.device)
     
 #    left  = s[:r.e1_in_seq[0]] if len(r.e1_in_seq) > 0 else s
 #    right = s[r.e2_in_seq[-1]+1:] if len(r.e2_in_seq) > 0 else self.emptyseq
@@ -314,7 +315,8 @@ class SemEval2010(torch.utils.data.Dataset):
     return self.to(torch.device('cuda'))
   
   def to(self, device):
-    print(f"Impossible to switch device! Whatever you're sayin, I stay on CPU! Sincerely yours, {self.__class__.__name__:s}.")
+    print(f"Impossible to switch device! Whatever you're sayin, I stay on CPU! But, for you, I will send new Tensors to `{device}`. Sincerely yours, {self.__class__.__name__:s}.", file=sys.stderr)
+    self.device = device
     return self
   
 
