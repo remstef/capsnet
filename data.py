@@ -146,6 +146,8 @@ class SemEval2010(torch.utils.data.Dataset):
     self.maxentlen = None
     self.load(nlines, compact)
     self.device = torch.device('cpu')
+    self.deviceTensor = torch.LongTensor().to(self.device) # create tensor on device, which can be used for copying
+
     
   def process_label(self, label):
     rval = AttributeHolder(label = label) # Product-Producer(e2,e1)
@@ -282,31 +284,33 @@ class SemEval2010(torch.utils.data.Dataset):
 
   def __getitem__(self, index):
     r = self.samples.iloc[index]
-    s = r.seq.to(self.device)
+    s = r.seq
     sl = r.seqlen
     
     # left, right and middle as indices (from,to)
-    left = torch.LongTensor([0, r.e1_in_seq[0] if len(r.e1_in_seq) > 0 else -1]).to(self.device)
-    right = torch.LongTensor([r.e2_in_seq[-1]+1 if len(r.e2_in_seq) > 0 else -1 , -1]).to(self.device)
+    left = torch.LongTensor([0, r.e1_in_seq[0] if len(r.e1_in_seq) > 0 else -1])
+    right = torch.LongTensor([r.e2_in_seq[-1]+1 if len(r.e2_in_seq) > 0 else -1 , -1])
     mid = torch.LongTensor([r.e1_in_seq[-1]+1 if len(r.e1_in_seq) > 0 else -1, 
-                            r.e2_in_seq[0] if len(r.e1_in_seq) > 0 and len(r.e2_in_seq) > 0 else -1]).to(self.device)
+                            r.e2_in_seq[0] if len(r.e1_in_seq) > 0 and len(r.e2_in_seq) > 0 else -1])
     
 #    left  = s[:r.e1_in_seq[0]] if len(r.e1_in_seq) > 0 else s
 #    right = s[r.e2_in_seq[-1]+1:] if len(r.e2_in_seq) > 0 else self.emptyseq
 #    mid   = s[r.e1_in_seq[-1]+1:r.e2_in_seq[0]] if len(r.e2_in_seq) > 0 else s[r.e1_in_seq[-1]+1:] if len(r.e1_in_seq) else self.emptyseq
     
-    e1 = r.seq_e1.to(self.device)
+    e1 = r.seq_e1
     e1_len = r.seqlen_e1
-    e2 = r.seq_e2.to(self.device)
+    e2 = r.seq_e2
     e2_len = r.seqlen_e2
     
     label = r.labelids.label
     e1label = r.labelids.e1label
     e2label = r.labelids.e2label
     rlabel = r.labelids.rlabel
-    dlabel = r.labelids.dlabel  
+    dlabel = r.labelids.dlabel
     
-    return s, sl, left, mid, right, e1, e1_len, e2, e2_len, label, e1label, e2label, rlabel, dlabel
+    d = self.deviceTensor
+    
+    return d.new(s), d.new(sl), d.new(left), d.new(mid), d.new(right), d.new(e1), d.new(e1_len), d.new(e2), d.new(e2_len), d.new(label), d.new(e1label), d.new(e2label), d.new(rlabel), d.new(dlabel)
   
   def cpu(self):
     return self.to(torch.device('cpu'))
@@ -317,6 +321,7 @@ class SemEval2010(torch.utils.data.Dataset):
   def to(self, device):
     print(f"Impossible to switch device! Whatever you're sayin, I stay on CPU! But, for you, I will send new Tensors to `{device}`. Sincerely yours, {self.__class__.__name__:s}.", file=sys.stderr)
     self.device = device
+    self.deviceTensor = self.deviceTensor.to(device)
     return self
   
 
