@@ -130,10 +130,11 @@ class TokenSequence(FixedLengthSequenceDataset):
 '''
 class SemEval2010(torch.utils.data.Dataset):
 
-  def __init__(self, path, subset = 'train.txt', nlines=None, maxseqlen=None, index = None, classindex = None, rclassindex = None, dclassindex = None, eclassindex = None, compact=True):
+  def __init__(self, path, subset = 'train.txt', nlines=None, maxseqlen=None, maxdist=60, index = None, classindex = None, rclassindex = None, dclassindex = None, eclassindex = None, compact=True):
     self.path = path
     self.subset = subset
     self.maxseqlen = maxseqlen
+    self.maxdist = maxdist
     self.index = index if index is not None else Index()
     self.bosidx = self.index.add('<bos>')
     self.eosidx = self.index.add('<eos>')
@@ -143,7 +144,7 @@ class SemEval2010(torch.utils.data.Dataset):
     self.rclassindex = rclassindex if rclassindex is not None else Index()
     self.dclassindex = dclassindex if dclassindex is not None else Index()
     self.eclassindex = eclassindex if eclassindex is not None else Index()
-    self.emptyseq = torch.zeros(0).long()
+    self.posiindex = Index()
     self.maxentlen = None
     self.load(nlines, compact)
     self.device = torch.device('cpu')
@@ -302,6 +303,9 @@ class SemEval2010(torch.utils.data.Dataset):
     self.samples['e2_in_seq'] = self.samples.e2_in_seq.apply(lambda tup: (min(tup[0], self.maxseqlen), min(tup[1], self.maxseqlen)))
     self.samples['seq_e1'] = self.samples.seq_e1.apply(lambda s: self.pad(s, self.maxentlen, self.epadidx))
     self.samples['seq_e2'] = self.samples.seq_e2.apply(lambda s: self.pad(s, self.maxentlen, self.epadidx))
+    # create the position vectors (relative distance to the beginning of the entities)
+    self.samples['e1_posi_seq'] = self.samples.e1_in_seq.apply(lambda offs_e1: torch.LongTensor(list(map(self.posiindex.add, map(lambda d: max(d, -self.maxdist) if d < 0 else min(d, self.maxdist), map(lambda i: i-offs_e1[0], range(self.maxseqlen)))))))
+    self.samples['e2_posi_seq'] = self.samples.e2_in_seq.apply(lambda offs_e2: torch.LongTensor(list(map(self.posiindex.add, map(lambda d: max(d, -self.maxdist) if d < 0 else min(d, self.maxdist), map(lambda i: i-offs_e2[0], range(self.maxseqlen)))))))
 
     # prep labels
     self.samples['labels'] = self.samples.labels.apply(self.process_label)
@@ -319,18 +323,21 @@ class SemEval2010(torch.utils.data.Dataset):
     r  = self.samples.iloc[index]
     s  = r.seq
     sl = r.seqlen
+
+    e1_posi_seq = r.e1_posi_seq
+    e2_posi_seq = r.e2_posi_seq    
     
-    e1_pos = r.e1_in_seq
-    e1     = r.seq_e1
-    e1_len = r.seqlen_e1
-    e2_pos = r.e2_in_seq
-    e2     = r.seq_e2
-    e2_len = r.seqlen_e2
+    e1_offs = r.e1_in_seq
+    e1      = r.seq_e1
+    e1_len  = r.seqlen_e1
+    e2_offs = r.e2_in_seq
+    e2      = r.seq_e2
+    e2_len  = r.seqlen_e2
     
     # left, right and middle as indices (from,to)
-    left  = torch.LongTensor([0, e1_pos[0]])
-    right = torch.LongTensor([e2_pos[1], sl])
-    mid   = torch.LongTensor([e1_pos[1], e2_pos[0]])
+    left  = torch.LongTensor([0, e1_offs[0]])
+    right = torch.LongTensor([e2_offs[1], sl])
+    mid   = torch.LongTensor([e1_offs[1], e2_offs[0]])
     
     label   = r.labelids.label
     e1label = r.labelids.e1label
@@ -338,9 +345,8 @@ class SemEval2010(torch.utils.data.Dataset):
     rlabel  = r.labelids.rlabel
     dlabel  = r.labelids.dlabel
     
-    d = self.deviceTensor
-    
-    return d.new_tensor(s), d.new_tensor(sl), d.new_tensor(left), d.new_tensor(e1_pos), d.new_tensor(mid), d.new_tensor(e2_pos), d.new_tensor(right), d.new_tensor(e1), d.new_tensor(e1_len), d.new_tensor(e2), d.new_tensor(e2_len), d.new_tensor(label), d.new_tensor(e1label), d.new_tensor(e2label), d.new_tensor(rlabel), d.new_tensor(dlabel)
+    d = self.deviceTensor    
+    return d.new_tensor(index), d.new_tensor(s), d.new_tensor(sl), d.new_tensor(e1_posi_seq), d.new_tensor(e2_posi_seq),  d.new_tensor(left), d.new_tensor(e1_offs), d.new_tensor(mid), d.new_tensor(e2_offs), d.new_tensor(right), d.new_tensor(e1), d.new_tensor(e1_len), d.new_tensor(e2), d.new_tensor(e2_len), d.new_tensor(label), d.new_tensor(e1label), d.new_tensor(e2label), d.new_tensor(rlabel), d.new_tensor(dlabel)
   
   def cpu(self):
     return self.to(torch.device('cpu'))
