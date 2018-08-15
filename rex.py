@@ -62,22 +62,20 @@ def parseSystemArgs():
 
 def loadData(args):
   index = utils.Index(initwords = ['<unk>'], unkindex = 0)
-  eindex = utils.Index(initwords = ['<unk>'], unkindex = 0)
   classindex = utils.Index()
   eclassindex = utils.Index()
   rclassindex = utils.Index()
   dclassindex = utils.Index()    
   
-  trainset = data.SemEval2010('data/semeval2010/', subset='train.txt', index = index, eindex=eindex, classindex = classindex, rclassindex = rclassindex, dclassindex = dclassindex, eclassindex = eclassindex).to(args.device)
+  trainset = data.SemEval2010('data/semeval2010/', subset='train.txt', index = index, classindex = classindex, rclassindex = rclassindex, dclassindex = dclassindex, eclassindex = eclassindex).to(args.device)
   
   index.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'vocab.txt'))
-  eindex.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'vocab-entities.txt'))
   classindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes.txt'))
   rclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-rel.txt'))
   dclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-direction.txt'))
   eclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-entity.txt'))
   
-  testset = data.SemEval2010('data/semeval2010/', subset='test.txt', index = index, eindex=eindex, classindex = classindex, rclassindex = rclassindex, dclassindex = dclassindex, eclassindex = eclassindex).to(args.device)
+  testset = data.SemEval2010('data/semeval2010/', subset='test.txt', index = index, classindex = classindex, rclassindex = rclassindex, dclassindex = dclassindex, eclassindex = eclassindex).to(args.device)
   
   # load pre embedding
   if args.init_weights:

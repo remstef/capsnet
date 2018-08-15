@@ -14,6 +14,9 @@ from nets.rnn import SimpleRNN
 import time
 import random
 
+# set this at your preferred debug point or start your program with python -m pdb ...
+# import pdb; pdb.set_trace()
+
 # prepare data
 dataset = CharSequence(path='../data/tinyshakespeare', seqlen=10, skip=10)
 
