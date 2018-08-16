@@ -130,11 +130,13 @@ class TokenSequence(FixedLengthSequenceDataset):
 '''
 class SemEval2010(torch.utils.data.Dataset):
 
-  def __init__(self, path, subset = 'train.txt', nlines=None, maxseqlen=None, maxdist=60, index = None, classindex = None, rclassindex = None, dclassindex = None, eclassindex = None, compact=True):
+  def __init__(self, path, subset = 'train.txt', nlines=None, maxseqlen=None, maxdist=60, nbos = 0, neos = 1, index = None, posiindex = None, classindex = None, rclassindex = None, dclassindex = None, eclassindex = None, compact=True):
     self.path = path
     self.subset = subset
     self.maxseqlen = maxseqlen
     self.maxdist = maxdist
+    self.nbos = nbos
+    self.neos = neos
     self.index = index if index is not None else Index()
     self.bosidx = self.index.add('<bos>')
     self.eosidx = self.index.add('<eos>')
@@ -144,7 +146,7 @@ class SemEval2010(torch.utils.data.Dataset):
     self.rclassindex = rclassindex if rclassindex is not None else Index()
     self.dclassindex = dclassindex if dclassindex is not None else Index()
     self.eclassindex = eclassindex if eclassindex is not None else Index()
-    self.posiindex = Index()
+    self.posiindex = posiindex if eclassindex is not None else Index()
     self.maxentlen = None
     self.load(nlines, compact)
     self.device = torch.device('cpu')
@@ -190,10 +192,13 @@ class SemEval2010(torch.utils.data.Dataset):
     if t.pos_ == 'PUNCT' or t.pos_ == 'SYM' or len(t.lemma_.strip()) < 1:
       return None
     if t.pos_ == 'NUM':
-      return '00#$'      
-    return t.lemma_.lower() + '#' + t.tag_[0].upper()
+      return '0'
+    return t.text
+#    if t.pos_ == 'NUM':
+#      return '00#$'
+#    return t.lemma_.lower() + '#' + t.tag_[0].upper()
 
-  def make_sequence_tensor(self, row, num_bos = 0, num_eos = 0, placeholder_e = False):
+  def make_sequence_tensor(self, row, placeholder_e = False):
     doc = row.spacy      
 
     # keep track of offsets e1 and e2
@@ -209,9 +214,11 @@ class SemEval2010(torch.utils.data.Dataset):
     s = filter(lambda t : t[0] is not None, s)
     s = map(lambda t: (self.index.add(t[0]), t[1], t[2]), s)
     s = list(s)
-    for i in range(num_bos):
+
+    # add sentence begin and sentence end markers
+    for i in range(self.nbos):
       s.insert(0, (self.bosidx, False, False))
-    for i in range(num_eos):
+    for i in range(self.neos):
       s.append((self.eosidx, False, False))
       
     seq, temp_seq_e1,  temp_seq_e2 = list(zip(*s))
@@ -283,13 +290,12 @@ class SemEval2010(torch.utils.data.Dataset):
       samples['spacy'] = samples.sentence.progress_apply(lambda s: nlp(s))
       samples['offset_e1_spacy']= samples.apply(lambda r: self.get_offsets_spacy(r, 'offset_e1'), axis=1)
       samples['offset_e2_spacy']= samples.apply(lambda r: self.get_offsets_spacy(r, 'offset_e2'), axis=1)
-    
       samples.to_pickle(processed_file)
       del samples
 
     # load processed messages
     self.samples = pandas.read_pickle(processed_file)    
-    self.samples = self.samples.apply(lambda r: self.make_sequence_tensor(r, num_bos = 0, num_eos = 1, placeholder_e = False), axis=1)
+    self.samples = self.samples.apply(lambda r: self.make_sequence_tensor(r, placeholder_e = False), axis=1)
 
     # pad
     if not self.maxseqlen:
@@ -359,10 +365,6 @@ class SemEval2010(torch.utils.data.Dataset):
     self.device = device
     self.deviceTensor = self.deviceTensor.to(device)
     return self
-  
-
-d = SemEval2010('data/semeval2010/',nlines=1000)
-  
 
 
 class SpamDataset(torch.utils.data.Dataset):

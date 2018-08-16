@@ -65,7 +65,7 @@ class Index(object):
   
   def tofile(self, fname):
     with open(fname, 'w') as f:
-      lines = map(lambda w: w + '\n', self.id2w)
+      lines = map(lambda w: str(w) + '\n', self.id2w)
       f.writelines(lines)
       
   def freeze(self, silent = False):

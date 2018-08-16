@@ -27,9 +27,14 @@ def parseSystemArgs():
 #  parser.add_argument('--data', default='../data/semeval2010', type=str, help='location of the data corpus')
   parser.add_argument('--rnntype', default='LSTM', type=str, help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
   parser.add_argument('--optim', default='SGD', type=str, help='type of optimizer (SGD, Adam, ASGD, SimpleSGD)')
-  parser.add_argument('--emsize', default=200, type=int, help='size of word embeddings')
-  parser.add_argument('--nhid', default=200, type=int, help='number of hidden units per layer')
-  parser.add_argument('--nlayers', default=2, type=int, help='number of layers')
+  parser.add_argument('--emsize', default=300, type=int, help='size of word embeddings')
+  parser.add_argument('--posiemsize', default=5, type=int, help='size of the position embeddings')
+  parser.add_argument('--classemsize', default=4, type=int, help='size of label embeddings')
+  parser.add_argument('--maxdist', default=60, type=int, help='maximum distance for position embeddings')
+  parser.add_argument('--windowsize', default=3, type=int, help='number of convolution filters to apply')
+  parser.add_argument('--numconvfilters', default=200, type=int, help='size of the moving convolutional window')
+  parser.add_argument('--convolution-windowsize', default=1, type=int, help='size of the moving convolutional window')
+  parser.add_argument('--nhid', default=200, type=int, help='size of hidden layer')
   parser.add_argument('--lr', default=1., type=float, help='initial learning rate')
   parser.add_argument('--lr-decay', default=0.25, type=float, help='decay amount of learning learning rate if no validation improvement occurs')
   parser.add_argument('--wdecay', default=1.2e-6, type=float, help='weight decay applied to all weights')
@@ -41,12 +46,11 @@ def parseSystemArgs():
   parser.add_argument('--log-interval', default=200, type=int, metavar='N', help='report interval')
   parser.add_argument('--save', default='model.pt', type=str, help='path to save the final model')
   parser.add_argument('--init-weights', default='', type=str, help='path to initial embedding. emsize must match size of embedding')
-  parser.add_argument('--chars', action='store_true', help='use character sequences instead of token sequences')
   parser.add_argument('--shuffle-batches', action='store_true', help='shuffle batches')
   parser.add_argument('--shuffle-samples', action='store_true', help='shuffle samples')
   parser.add_argument('--distr-samples', action='store_true', help='distribute samples within batches evenly over time.')
   parser.add_argument('--cuda', action='store_true', help='use CUDA')
-  parser.add_argument('--engine', action='store_true', help='use torchnet engine for traininge and testing.')
+  parser.add_argument('--engine', action='store_true', help='use torchnet engine for training and testing.')
   args = parser.parse_args()
   
   # Set the random seed manually for reproducibility.
@@ -62,20 +66,17 @@ def parseSystemArgs():
 
 def loadData(args):
   index = utils.Index(initwords = ['<unk>'], unkindex = 0)
-  classindex = utils.Index()
-  eclassindex = utils.Index()
-  rclassindex = utils.Index()
-  dclassindex = utils.Index()    
   
-  trainset = data.SemEval2010('data/semeval2010/', subset='train.txt', index = index, classindex = classindex, rclassindex = rclassindex, dclassindex = dclassindex, eclassindex = eclassindex).to(args.device)
+  trainset = data.SemEval2010('data/semeval2010/', subset='train.txt', index = index, maxdist = args.maxdist, nbos = args.windowsize // 2, neos = args.windowsize // 2).to(args.device)
   
-  index.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'vocab.txt'))
-  classindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes.txt'))
-  rclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-rel.txt'))
-  dclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-direction.txt'))
-  eclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-entity.txt'))
+  trainset.index.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'vocab.txt'))
+  trainset.posiindex.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'position-index.txt'))
+  trainset.classindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes.txt'))
+  trainset.rclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-rel.txt'))
+  trainset.dclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-direction.txt'))
+  trainset.eclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-entity.txt'))
   
-  testset = data.SemEval2010('data/semeval2010/', subset='test.txt', index = index, classindex = classindex, rclassindex = rclassindex, dclassindex = dclassindex, eclassindex = eclassindex).to(args.device)
+  testset = data.SemEval2010('data/semeval2010/', subset='test.txt', maxseqlen = trainset.maxseqlen, index = index, nbos = args.windowsize // 2, neos = args.windowsize // 2, maxdist=args.maxdist, posiindex = trainset.posiindex, classindex = trainset.classindex, rclassindex = trainset.rclassindex, dclassindex = trainset.dclassindex, eclassindex = trainset.eclassindex).to(args.device)
   
   # load pre embedding
   if args.init_weights:
@@ -83,7 +84,7 @@ def loadData(args):
     if args.init_weights.endswith('bin'):
       preemb = embedding.FastTextEmbedding(args.init_weights, normalize = True).load()
       if args.emsize != preemb.dim():
-        raise ValueError('emsize must match embedding size. Expected %d but got %d)' % (args.emsize, preemb.dim()))
+        raise ValueError(f'emsize must match embedding size. Expected {args.emsize:d} but got {preemb.dim():d}')
     elif args.init_weights.endswith('txt'):
       preemb = embedding.TextEmbedding(args.init_weights, vectordim = args.emsize).load(normalize = True)
     elif args.init_weights.endswith('rand'):
@@ -106,17 +107,17 @@ def loadData(args):
 
   args.maxseqlen = trainset.maxseqlen
   args.index = index
-  args.eindex = eindex
-  args.classindex = classindex
-  args.rclassindex = rclassindex
-  args.dclassindex = dclassindex
-  args.eclassindex = eclassindex
+  args.posiindex = trainset.posiindex
+  args.classindex = trainset.classindex
+  args.rclassindex = trainset.rclassindex
+  args.dclassindex = trainset.dclassindex
+  args.eclassindex = trainset.eclassindex
   args.ntoken = len(index)
-  args.nclasses = len(classindex)
+  args.nclasses = len(trainset.classindex)
   args.trainloader = train_loader
   args.testloader = test_loader
   args.preembweights = preemb_weights
-  args.confusion_meter = torchnet.meter.ConfusionMeter(len(classindex), normalized=True)
+  args.confusion_meter = torchnet.meter.ConfusionMeter(len(trainset.classindex), normalized=True)
 
   return args
 
@@ -125,35 +126,67 @@ def buildModel(args):
   Build the model, processing function for one batch and loss criterion
   '''
 
-  model = nets.rnn.RNN_CLASSIFY_linear(
-      ntoken = args.ntoken,
-      nhid = args.nhid, 
-      nclasses = args.nclasses
-      ).to(args.device)
+#  model = nets.rnn.RNN_CLASSIFY_linear(
+#      ntoken = args.ntoken,
+#      nhid = args.nhid, 
+#      nclasses = args.nclasses
+#      ).to(args.device)
+  
+#  def process_linear_rnn(batch_data):
+#
+#    # unpack data that was already prepared (batch_first_dim)
+#    ith_sample, seq, seqlen, relposi_vec_e1, relposi_vec_e2, offs_left, offs_e1, offs_mid, offs_e2, offs_right, seq_e1, seqlen_e1, seq_e2, seqlen_e2, label, e1label, e2label, rlabel, dlabel, h, train = batch_data
+#    assert ith_sample.size(0) == args.batch_size, f"That's odd, batch dimension shoudl be {args.batch_size:d} but is {ith_sample.size(0)}."
+#    
+#    x_batch_one_hot = utils.makeOneHot(seq, args.ntoken)
+#    x_batch_one_hot = x_batch_one_hot.transpose(0,1) # switch dim 0 with dim 1 => x_batch_one_hot = seqlen x batch x ntoken
+#    targets = label
+#
+#    hidden = model.init_hidden(x_batch_one_hot.size(1))
+#
+#    for i in range(x_batch_one_hot.size(0)):
+#      outputs, hidden = model(x_batch_one_hot[i], hidden)
+#      
+#    loss = criterion(outputs, targets)
+#    
+#    predictions = getpredictions(outputs.data)
+#    return loss, (outputs, predictions, targets, hidden)
+  
+  model = nets.rnn.ReClass(
+      ntoken              = args.ntoken,
+      nclasses            = args.nclasses,
+      maxdist             = args.maxdist,
+      maxseqlength        = args.maxseqlen,
+      window_size         = args.windowsize,
+      emsizeword          = args.emsize,
+      emsizeposi          = args.posiemsize,
+      emsizeclass         = args.classemsize,
+      nhid                = args.nhid,
+      numconvfilters      = args.numconvfilters,
+      convwindow          = args.convolution_windowsize,
+      dropout             = args.dropout,
+      weightsword         = args.preembweights,
+      train_emword        = True
+      )
   
   criterion = torch.nn.NLLLoss() #CrossEntropyLoss # NLLLoss
+ 
   
-  #############################################################################
-  # process one batch with the model
-  #############################################################################
-
   def process(batch_data):
-    
-    seq, seqlen, oleft, omid, oright, seq_e1, seqlen_e1, seq_e2, seqlen_e2, label, e1label, e2label, rlabel, dlabel, h, train = batch_data
-    
-    x_batch_one_hot = utils.makeOneHot(seq, args.ntoken)
-    x_batch_one_hot = x_batch_one_hot.transpose(0,1) # switch dim 0 with dim 1 => x_batch_one_hot = seqlen x batch x ntoken
+    # unpack data that was already prepared (batch_first_dim)
+    ith_sample, seq, seqlen, relposi_vec_e1, relposi_vec_e2, offs_left, offs_e1, offs_mid, offs_e2, offs_right, seq_e1, seqlen_e1, seq_e2, seqlen_e2, label, e1label, e2label, rlabel, dlabel, train = batch_data
+    assert ith_sample.size(0) == args.batch_size, f"That's odd, batch dimension shoudl be {args.batch_size:d} but is {ith_sample.size(0)}."
     targets = label
-
-    hidden = model.init_hidden(x_batch_one_hot.size(1))
-
-    for i in range(x_batch_one_hot.size(0)):
-      outputs, hidden = model(x_batch_one_hot[i], hidden)
-
+    
+    outputs, labelweights = model(seq, seqlen, offs_e1, offs_e2, relposi_vec_e1, relposi_vec_e2)
+      
     loss = criterion(outputs, targets)
     
     predictions = getpredictions(outputs.data)
-    return loss, (outputs, predictions, targets, hidden)
+    return loss, (outputs, predictions, targets)
+    
+  
+
   
   print(model)
   print(criterion)
@@ -227,12 +260,10 @@ def pipeline(args):
     predictions = []
     targets = []
     
-    hidden = model.init_hidden(args.batch_size)
     with torch.no_grad():
-      for batch, batch_data in enumerate(tqdm(dloader, ncols=89, desc = 'Test ')):   
-        batch_data.append(hidden)
+      for batch, batch_data in enumerate(tqdm(dloader, ncols=89, desc = 'Test ')):
         batch_data.append(False)
-        loss, (outputs, predictions_, targets_, hidden) = process(batch_data)
+        loss, (outputs, predictions_, targets_) = process(batch_data)
         # keep track of some scores
         total_loss += args.batch_size * loss.item()
         args.confusion_meter.add(outputs.data, targets_)
@@ -252,11 +283,10 @@ def pipeline(args):
     predictions = []
     targets = []
     
-    hidden = model.init_hidden(args.batch_size)    
     for batch, batch_data in enumerate(tqdm(args.trainloader, ncols=89, desc='Train')):
       batch_start_time = time.time()
       model.zero_grad()
-      loss, (outputs, predictions_, targets_, hidden) = process(batch_data + [hidden, True])
+      loss, (outputs, predictions_, targets_) = process(batch_data + [ True ])
       loss.backward()
       args.optimizer.step()
       # track some scores
@@ -299,19 +329,16 @@ def engine(args):
       state['train_loss'] = 0.
       state['test_loss'] = 0.
       state['train_loss_per_interval'] = 0.
-      state['hidden'] = model.init_hidden(args.batch_size)
     
     def on_end(state):
       pass
       
     def on_sample(state):
-      state['sample'].append(state['hidden'])
       state['sample'].append(state['train'])
       state['batch_start_time'] = time.time()
       
     def on_forward(state):
-      outputs, hidden = state['output']
-      state['hidden'] = hidden
+      outputs, predictions, targets  = state['output']
       loss_val = state['loss'].item()
       state['train_loss'] += loss_val
       state['test_loss'] += loss_val
@@ -333,7 +360,6 @@ def engine(args):
       state['train_loss_per_interval'] = 0.      
       state['iterator'] = tqdm(state['iterator'], ncols=89, desc='train')
       model.train()
-      state['hidden'] = model.init_hidden(args.batch_size)
     
     def on_end_epoch(state):
       model.eval()

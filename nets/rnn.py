@@ -2,6 +2,141 @@
 
 import torch
 
+class ReClass(torch.nn.Module):
+  ''' `convtest`
+    seqlen = 5
+    nfeat = 4
+    x = torch.Tensor(list(range(2*seqlen*nfeat))).view(2,1,seqlen,nfeat) # batch x channnel x seqlen x features
+    numfilters=3
+    convwindow=2
+    conv = torch.nn.Conv2d(1, numfilters, (convwindow, nfeat))
+    relu = torch.nn.ReLU()
+    maxpool = torch.nn.MaxPool2d((seqlen - (convwindow-1), 1) )
+    y = conv(x)
+    y_ = relu(y)
+    y__ = maxpool(y_)
+  '''
+  def __init__(self, 
+               ntoken,
+               nclasses,
+               maxseqlength,
+               maxdist,
+               window_size,
+               emsizeword,
+               emsizeposi,
+               emsizeclass,
+               nhid,
+               numconvfilters=100,
+               convwindow=1,
+               dropout=0.2,
+               weightsword=None,
+               train_emword=True):
+    
+    super(ReClass, self).__init__()
+    
+    self.window_size = window_size
+    self.fs = window_size * (emsizeword + 2 * emsizeposi) # size of the feature vector for words
+    
+    # layers
+    self.word_embeddings = torch.nn.Embedding(ntoken, emsizeword)
+    self.posi_embeddings = torch.nn.Embedding(maxdist * 2 + 1, emsizeposi)
+    self.class_embeddings = torch.nn.Embedding(nclasses, emsizeclass)
+    
+    self.conv = torch.nn.Conv2d(1, numconvfilters, (convwindow, self.fs), bias=True) #bias??
+    self.relu = torch.nn.ReLU()
+    self.dropout = torch.nn.Dropout(dropout)
+    self.maxpool = torch.nn.MaxPool2d(((maxseqlength-window_size//2-1) - (convwindow-1),1))
+    self.linear = torch.nn.Linear(numconvfilters, nclasses)
+    self.softmax = torch.nn.LogSoftmax(dim=1) # self.softmax = torch.nn.Softmax(dim=1)
+
+    # initialization actions
+    self.init_weights(weightsword, train_emword)
+    
+    
+  def init_weights(self, weightsword, trainword):
+    initrange = 0.1
+    # TODO: check if that makes any difference
+    #self.posi_embeddings.bias.data.zero_()
+    #self.word_embeddings.bias.data.zero_()
+    #self.class_embeddings.bias.data.zero_()    
+    if weightsword is None:
+      self.word_embeddings.weight.data.uniform_(-initrange, initrange)
+    else:
+      assert weightsword.size() == self.word_embeddings.weight.size(), f'Size clash emwords supplied weights: {weightsword.size()}, expected {self.word_embeddings.weight.size()}'
+      self.word_embeddings.load_state_dict({'weight': weightsword})
+      if not trainword:
+        self.word_embeddings.weight.requires_grad = False
+    self.posi_embeddings.weight.data.uniform_(-initrange, initrange)
+    self.class_embeddings.weight.data.uniform_(-initrange, initrange)
+    
+    
+
+  def forward(self, seq, seqlen, e1, e2, seqp_e1, seqp_e2):
+    # seq = batch_size x max_seq_length (padded) : sentence
+    # seqlen = batch_size x seq_length
+    # e1 & e2 = batch_size x 2 : offsets as begin e[0] and end e[1]
+    # seqpX = batch_size x max_seqlength (padded) : sentence as relative position indices to e1 and e2
+    
+    we = self.word_embeddings(seq)
+    pe1 = self.posi_embeddings(seqp_e1)
+    pe2 = self.posi_embeddings(seqp_e2)
+    
+    # concatenate word embedding with positional embedding, w = batch_size x seq_length x (wemsize+2xpemsize)
+    w = torch.cat((we, pe1, pe2), dim=2)
+    # concatenate embeddings their context embeddings in a sliding window fashion, w = batch_size x  seq_length-windowsize//2-1 x (windowsize x (wemsize+2xpemsize))
+    w = self.window_cat(w, self.window_size)
+    
+    # convolution + maxpooling
+    w.unsqueeze_(1) # add `channel` dimension; needed for conv: w = batch_size x 1 x seq_length x nfeatures
+    c = self.conv(w)
+    c = self.relu(c) # because it's a good policy.. tanh would be another option
+    c = self.dropout(c) # yet another good policy, although debatable if it should come here
+    f = self.maxpool(c)
+    f.squeeze_() # remove trailing singular dimensions (f: batch_size x numfilters x 1 x 1 => batch_size x numfilters)
+    
+    # linear classification
+    o = self.linear(f)
+    o = self.softmax(o)
+    
+    return o, 0
+  
+  @staticmethod
+  def window_cat(seq, n):
+    '''
+    in:  seq = batch_size x seqence x features
+    out:       batch_size x seqence-n//2-1 x (features x n)
+    
+    concatenate sliding windows (proper padding of sequences beforehand is expected)
+
+      asdf = torch.Tensor(list(range(3*4*5))).view(3,4,5)
+      tensor([[[ 0.,  1.,  2.,  3.,  4.],
+               [ 5.,  6.,  7.,  8.,  9.],
+               [10., 11., 12., 13., 14.],
+               [15., 16., 17., 18., 19.]],
+      
+              [[20., 21., 22., 23., 24.],
+               [25., 26., 27., 28., 29.],
+               [30., 31., 32., 33., 34.],
+               [35., 36., 37., 38., 39.]],
+      
+              [[40., 41., 42., 43., 44.],
+               [45., 46., 47., 48., 49.],
+               [50., 51., 52., 53., 54.],
+               [55., 56., 57., 58., 59.]]])
+
+    asdf_ = ReClass.window_cat(asdf, 3)    
+    tensor([[[ 0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9., 10., 11., 12., 13., 14.],
+             [ 5.,  6.,  7.,  8.,  9., 10., 11., 12., 13., 14., 15., 16., 17., 18., 19.]],
+ 
+            [[20., 21., 22., 23., 24., 25., 26., 27., 28., 29., 30., 31., 32., 33., 34.],
+             [25., 26., 27., 28., 29., 30., 31., 32., 33., 34., 35., 36., 37., 38., 39.]],
+
+            [[40., 41., 42., 43., 44., 45., 46., 47., 48., 49., 50., 51., 52., 53., 54.],
+             [45., 46., 47., 48., 49., 50., 51., 52., 53., 54., 55., 56., 57., 58., 59.]]])
+    '''
+    return torch.cat([seq[:,i:seq.size(1)-(n-i-1),:] for i in range(n)],dim=2)
+  
+
 
 class RNNLM(torch.nn.Module):
   '''https://discuss.pytorch.org/t/lstm-to-bi-lstm/12967'''
