@@ -37,7 +37,7 @@ def parseSystemArgs():
   parser.add_argument('--convolution-windowsize', default=1, type=int, help='size of the moving convolutional window')
   parser.add_argument('--nhid', default=200, type=int, help='size of hidden layer')
   parser.add_argument('--lr', default=1., type=float, help='initial learning rate')
-  parser.add_argument('--lr-decay', default=0.25, type=float, help='decay amount of learning learning rate if no validation improvement occurs')
+#  parser.add_argument('--lr-decay', default=0.25, type=float, help='decay amount of learning learning rate if no validation improvement occurs')
   parser.add_argument('--wdecay', default=1.2e-6, type=float, help='weight decay applied to all weights')
   parser.add_argument('--clip', default=0.25, type=float, help='gradient clipping')
   parser.add_argument('--epochs', default=40, type=int, help='upper epoch limit')
@@ -45,7 +45,7 @@ def parseSystemArgs():
   parser.add_argument('--dropout', default=0.2, type=float, help='dropout applied to layers (0 = no dropout)')
   parser.add_argument('--seed', default=1111, type=int, help='random seed')
   parser.add_argument('--log-interval', default=60, type=int, metavar='N', help='report interval')
-  parser.add_argument('--save', default='model.pt', type=str, help='path to save the final model')
+#  parser.add_argument('--save', default='model.pt', type=str, help='path to save the final model')
   parser.add_argument('--init-weights', default='', type=str, help='path to initial embedding. emsize must match size of embedding')
   parser.add_argument('--train-weights', action='store_true', help='Specify if the provided pre-learned embedding should be trainable')
   parser.add_argument('--shuffle-batches', action='store_true', help='shuffle batches')
@@ -239,11 +239,12 @@ def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, tra
 |
 |{:s}
 | Epoch {:03d} took {:06.2f}s
-|   +-- learing rate {:10.6f}
-|   +-- loss train {:9.6f} 
-|   +-- loss test  {:9.6f} 
+|   +-- Learing rate {:10.6f}
+|   +-- Loss (train) {:9.6f} 
+|   +-- Loss (test)  {:9.6f} 
 |   +-- A {:6.4f} | P {:6.4f} | R {:6.4f} | F1 {:6.4f} 
 |{:s}
+|
 |\
 '''.format(
       '=' * 88,
