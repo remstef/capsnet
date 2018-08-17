@@ -263,9 +263,9 @@ def loadmodel(args):
     model.rnn.flatten_parameters()
   return model
 
-def savemodel(args, toCpu=True):
+def savemodel(args):
   with open(args.save, 'wb') as f:
-    torch.save(args.model.cpu(), f)
+    torch.save(args.model, f)
     
 def savepredictions(args, ids, logprobs, predictions, targets, scores):
   outfile = f'{args.save:s}.predictions.tsv'
@@ -425,25 +425,20 @@ def engine(args):
 
     process = args.modelprocessfun
     model = args.model
-    
     engine.train(process, args.trainloader, maxepoch=args.epochs, optimizer=args.optimizer)
-
 
 if __name__ == '__main__':
  
   try:
-    
     args = parseSystemArgs()
     args = loadData(args)
     args = buildModel(args)  
-    args = getOptimizer(args)
-    
+    args = getOptimizer(args)    
     if args.engine:
       print('Running in torchnet engine.')
       engine(args)
     else:
-      pipeline(args)
-    
+      pipeline(args)    
   except (KeyboardInterrupt, SystemExit):
     print('Process cancelled')
    
