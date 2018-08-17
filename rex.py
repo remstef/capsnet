@@ -47,7 +47,7 @@ def parseSystemArgs():
   parser.add_argument('--log-interval', default=60, type=int, metavar='N', help='report interval')
   parser.add_argument('--save', default='model.pt', type=str, help='path to save the final model')
   parser.add_argument('--init-word-weights', default='', type=str, help='path to initial word embedding; emsize must match size of embedding')
-  parser.add_argument('--fix-word-weights', action='store_true', help='Specify if the word embedding should be trainable')
+  parser.add_argument('--fix-word-weights', action='store_true', help='Specify if the word embedding should be excluded from further training')
   parser.add_argument('--shuffle-batches', action='store_true', help='shuffle batches')
   parser.add_argument('--shuffle-samples', action='store_true', help='shuffle samples')
   parser.add_argument('--cuda', action='store_true', help='use CUDA')
