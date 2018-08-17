@@ -50,7 +50,6 @@ def parseSystemArgs():
   parser.add_argument('--fix-word-weights', action='store_true', help='Specify if the word embedding should be trainable')
   parser.add_argument('--shuffle-batches', action='store_true', help='shuffle batches')
   parser.add_argument('--shuffle-samples', action='store_true', help='shuffle samples')
-  parser.add_argument('--distr-samples', action='store_true', help='distribute samples within batches evenly over time.')
   parser.add_argument('--cuda', action='store_true', help='use CUDA')
   parser.add_argument('--engine', action='store_true', help='use torchnet engine for training and testing.')
   args = parser.parse_args()
