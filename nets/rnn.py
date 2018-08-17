@@ -47,7 +47,7 @@ class ReClass(torch.nn.Module):
     self.dropout = torch.nn.Dropout(dropout)
     self.maxpool = torch.nn.MaxPool2d(((maxseqlength-window_size//2-1) - (convwindow-1),1))
     self.linear = torch.nn.Linear(numconvfilters, nclasses)
-    self.softmax = torch.nn.LogSoftmax(dim=1) # self.softmax = torch.nn.Softmax(dim=1)
+    self.softmax = torch.nn.LogSoftmax(dim=1) # Softmax(dim=1)
 
     # initialization actions
     self.init_weights(weightsword, train_emword)
@@ -68,8 +68,6 @@ class ReClass(torch.nn.Module):
         self.word_embeddings.weight.requires_grad = False
     self.posi_embeddings.weight.data.uniform_(-initrange, initrange)
     self.class_embeddings.weight.data.uniform_(-initrange, initrange)
-    
-    
 
   def forward(self, seq, seqlen, e1, e2, seqp_e1, seqp_e2):
     # seq = batch_size x max_seq_length (padded) : sentence
@@ -136,8 +134,6 @@ class ReClass(torch.nn.Module):
     '''
     return torch.cat([seq[:,i:seq.size(1)-(n-i-1),:] for i in range(n)],dim=2)
   
-
-
 class RNNLM(torch.nn.Module):
   '''https://discuss.pytorch.org/t/lstm-to-bi-lstm/12967'''
 

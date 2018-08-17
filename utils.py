@@ -109,6 +109,33 @@ class Index(object):
         index.id2w.append(w)
         index.w2id[w] = i
     return index
+  
+class Attention(torch.nn.Module):
+  '''
+  attn = Attention(100)
+  x = Variable(torch.randn(16,30,100))
+  attn(x).size() == (16,100)
+  '''
+  def __init__(self, attention_size):
+    super(Attention, self).__init__()
+    self.attention = self.new_parameter(attention_size, 1)
+
+  def forward(self, x_in):
+    # after this, we have (batch, dim1) with a diff weight per each cell
+    attention_score = torch.matmul(x_in, self.attention).squeeze()
+    attention_score = torch.functional.softmax(attention_score).view(x_in.size(0), x_in.size(1), 1)
+    scored_x = x_in * attention_score
+
+    # now, sum across dim 1 to get the expected feature vector
+    condensed_x = torch.sum(scored_x, dim=1)
+
+    return condensed_x
+
+  @staticmethod
+  def new_parameter(*size):
+      out = torch.nn.Parameter(torch.FloatTensor(*size))
+      torch.nn.init.xavier_normal(out)
+      return out
 
 class RandomBatchSampler(torch.utils.data.sampler.BatchSampler):
   
