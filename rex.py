@@ -25,7 +25,7 @@ def parseSystemArgs():
   '''
   parser = argparse.ArgumentParser(description='Relation Extraction')
 #  parser.add_argument('--data', default='../data/semeval2010', type=str, help='location of the data corpus')
-  parser.add_argument('--rnntype', default='LSTM', type=str, help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
+#  parser.add_argument('--rnntype', default='LSTM', type=str, help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
   parser.add_argument('--optim', default='SGD', type=str, help='type of optimizer (SGD, Adam, ASGD, SimpleSGD)')
   parser.add_argument('--loss-criterion', default='NLLLoss', type=str, help='type of loss function to use (NLLLoss, CrossEntropyLoss)')
   parser.add_argument('--emsize', default=300, type=int, help='size of word embeddings')
@@ -45,7 +45,7 @@ def parseSystemArgs():
   parser.add_argument('--dropout', default=0.2, type=float, help='dropout applied to layers (0 = no dropout)')
   parser.add_argument('--seed', default=1111, type=int, help='random seed')
   parser.add_argument('--log-interval', default=60, type=int, metavar='N', help='report interval')
-#  parser.add_argument('--save', default='model.pt', type=str, help='path to save the final model')
+  parser.add_argument('--save', default='model.pt', type=str, help='path to save the final model')
   parser.add_argument('--init-word-weights', default='', type=str, help='path to initial word embedding; emsize must match size of embedding')
   parser.add_argument('--fix-word-weights', action='store_true', help='Specify if the word embedding should be trainable')
   parser.add_argument('--shuffle-batches', action='store_true', help='shuffle batches')
@@ -62,10 +62,8 @@ def parseSystemArgs():
       print('WARNING: You have a CUDA device, so you should probably run with --cuda')
 
   args.device = torch.device('cuda' if args.cuda else 'cpu')
-
   return args
-
-
+  
 def loadData(args):
   index = utils.Index(initwords = ['<unk>'], unkindex = 0)
   
@@ -99,12 +97,10 @@ def loadData(args):
     preemb_weights = None
   
   __ItemSampler = RandomSampler if args.shuffle_samples else SequentialSampler
-  __BatchSampler = utils.EvenlyDistributingSampler if args.distr_samples else BatchSampler
-  train_loader = torch.utils.data.DataLoader(trainset, batch_sampler = utils.ShufflingBatchSampler(__BatchSampler(__ItemSampler(trainset), batch_size=args.batch_size, drop_last = True), shuffle = args.shuffle_batches, seed = args.seed), num_workers = 0)
-  test_loader = torch.utils.data.DataLoader(testset, batch_sampler = __BatchSampler(__ItemSampler(testset), batch_size=args.batch_size, drop_last = True), num_workers = 0)
+  train_loader = torch.utils.data.DataLoader(trainset, batch_sampler = utils.ShufflingBatchSampler(BatchSampler(__ItemSampler(trainset), batch_size=args.batch_size, drop_last = False), shuffle = args.shuffle_batches, seed = args.seed), num_workers = 0)
+  test_loader = torch.utils.data.DataLoader(testset, batch_sampler = BatchSampler(__ItemSampler(testset), batch_size=args.batch_size, drop_last = False), num_workers = 0)
 
   print(__ItemSampler.__name__)
-  print(__BatchSampler.__name__)
   print('Shuffle training batches: ', args.shuffle_batches)
 
   args.maxseqlen = trainset.maxseqlen
@@ -177,8 +173,8 @@ def buildModel(args):
   
   def process(batch_data):
     # unpack data that was already prepared (batch_first_dim)
-    ith_sample, seq, seqlen, relposi_vec_e1, relposi_vec_e2, offs_left, offs_e1, offs_mid, offs_e2, offs_right, seq_e1, seqlen_e1, seq_e2, seqlen_e2, label, e1label, e2label, rlabel, dlabel, train = batch_data
-    assert ith_sample.size(0) == args.batch_size, f"That's odd, batch dimension shoudl be {args.batch_size:d} but is {ith_sample.size(0)}."
+    ith_sample, sample_id, seq, seqlen, relposi_vec_e1, relposi_vec_e2, offs_left, offs_e1, offs_mid, offs_e2, offs_right, seq_e1, seqlen_e1, seq_e2, seqlen_e2, label, e1label, e2label, rlabel, dlabel, train = batch_data
+    # assert ith_sample.size(0) == args.batch_size, f"That's odd, batch dimension should be {args.batch_size:d} but is {ith_sample.size(0)}."
     targets = label
     
     outputs, labelweights = model(seq, seqlen, offs_e1, offs_e2, relposi_vec_e1, relposi_vec_e2)
@@ -186,7 +182,7 @@ def buildModel(args):
     loss = criterion(outputs, targets)
     
     predictions = getpredictions(outputs.data)
-    return loss, (outputs, predictions, targets)
+    return loss, (sample_id, outputs, predictions, targets)
     
   print(model)
   print(criterion)
@@ -205,20 +201,27 @@ def getOptimizer(args):
   else:
     Optimizer__ = getattr(torch.optim, args.optim)
   optimizer = utils.createWrappedOptimizerClass(Optimizer__)(args.model.parameters(), lr =args.lr, clip=None, weight_decay=args.wdecay)  
-
   args.optimizer = optimizer
-  
   return args
 
-def message_status_interval(message, epoch, max_epoch, batch_i, nbatches, batch_start_time, log_interval, train_loss_interval, predictions, targets):
-  p = sklearn.metrics.precision_score(targets, predictions, average='macro')
-  r = sklearn.metrics.recall_score(targets, predictions, average='macro')
-  f = sklearn.metrics.f1_score(targets, predictions, average='macro')
-  a = sklearn.metrics.accuracy_score(targets, predictions)
+def getpredictions(batch_logprobs):
+  return batch_logprobs.max(dim=1)[1]
+
+def getscores(targets, predictions):
+  vals = {
+      'A': sklearn.metrics.accuracy_score(targets, predictions),
+      'P': sklearn.metrics.precision_score(targets, predictions, average='macro'),
+      'R': sklearn.metrics.recall_score(targets, predictions, average='macro'),
+      'F': sklearn.metrics.f1_score(targets, predictions, average='macro')
+      }
+  return vals
+
+def message_status_interval(message, epoch, max_epoch, batch_i, nbatches, batch_start_time, log_interval, train_loss_interval, scores):
+  scoreline = ' | '.join(['{:s} {:6.4f}'.format(k, v) for k, v in scores.items()])
   return '''\
 | Status: Batch {:d} - {:d} / {:d} | Epoch {:d} / {:d} | ms/batch {:5.2f} 
 |   +-- Training loss {:.10f}
-|   +-- A {:6.4f} | P {:6.4f} | R {:6.4f} | F1 {:6.4f}
+|   +-- {:s}
 |\
 '''.format(
       batch_i - args.log_interval,
@@ -228,13 +231,10 @@ def message_status_interval(message, epoch, max_epoch, batch_i, nbatches, batch_
       max_epoch,
       ((time.time() - batch_start_time) * 1000) / log_interval, 
       train_loss_interval,
-      a,p,r,f)
+      scoreline)
 
-def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, train_loss, test_loss, predictions, targets):
-  p = sklearn.metrics.precision_score(targets, predictions, average='macro')
-  r = sklearn.metrics.recall_score(targets, predictions, average='macro')
-  f = sklearn.metrics.f1_score(targets, predictions, average='macro')
-  a = sklearn.metrics.accuracy_score(targets, predictions)
+def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, train_loss, test_loss, scores):
+  scoreline = ' | '.join(['{:s} {:6.4f}'.format(k, v) for k, v in scores.items()])
   return '''\
 |
 |{:s}
@@ -242,7 +242,7 @@ def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, tra
 |   +-- Learing rate {:10.6f}
 |   +-- Loss (train) {:.10f}
 |   +-- Loss (test)  {:.10f}
-|   +-- A {:6.4f} | P {:6.4f} | R {:6.4f} | F1 {:6.4f} 
+|   +-- {:s}
 |{:s}
 |
 |\
@@ -253,11 +253,31 @@ def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, tra
       learning_rate,
       train_loss, 
       test_loss,
-      a, p, r, f,
+      scoreline,
       '=' * 88)
 
-def getpredictions(batch_logprobs):
-  return batch_logprobs.max(dim=1)[1]  
+def loadmodel(args):
+  with open(args.save, 'rb') as f:
+    model = torch.load(f)
+    # after load params are not a continuous chunk of memory
+    # this makes them a continuous chunk, and will speed up forward pass
+    model.rnn.flatten_parameters()
+  return model
+
+def savemodel(args, toCpu=True):
+  with open(args.save, 'wb') as f:
+    torch.save(args.model.cpu(), f)
+    
+def savepredictions(args, ids, logprobs, predictions, targets, scores):
+  outfile = f'{args.save:s}.predictions.tsv'
+  assert len(ids) == len(logprobs) == len(predictions) == len(targets), f'Something is wrong, number of samples and number of predicions are different: {len(ids):s} {len(logprobs):s} {len(predictions):s} {len(targets):s}'
+  with open(outfile, 'w') as f:
+    print('# ' + ' | '.join(['{:s} {:6.4f}'.format(k, v) for k, v in scores.items()]), file=f)
+    for i in range(len(ids)):
+      pred_classlabel = args.classindex[predictions[i]]
+      true_classlabel = args.classindex[targets[i]]
+      correct = int(predictions[i] == targets[i])
+      print(f'{ids[i]:d}\t{pred_classlabel:s}\t{true_classlabel:s}\t{correct:d}\t{predictions[i]:d}\t{targets[i]:d}\t{logprobs[i]:}', file=f)
 
 ###############################################################################
 # Run in Pipeline mode
@@ -269,21 +289,25 @@ def pipeline(args):
     # Turn on evaluation mode which disables dropout.
     model.eval()
     total_loss = 0.
+    ids = []
     predictions = []
+    logprobs = []
     targets = []
     
     with torch.no_grad():
       for batch, batch_data in enumerate(tqdm(dloader, ncols=89, desc = 'Test ')):
         batch_data.append(False)
-        loss, (outputs, predictions_, targets_) = process(batch_data)
+        loss, (sampleids, outputs, predictions_, targets_) = process(batch_data)
         # keep track of some scores
         total_loss += args.batch_size * loss.item()
         args.confusion_meter.add(outputs.data, targets_)
+        ids.extend(sampleids.tolist())
+        logprobs.extend(outputs.data.tolist())
         predictions.extend(predictions_.tolist())
         targets.extend(targets_.tolist())
         
     test_loss = total_loss / (len(dloader) * args.batch_size )
-    return test_loss, predictions, targets
+    return test_loss, ids, logprobs, predictions, targets
   
   
   def train(args):
@@ -298,7 +322,7 @@ def pipeline(args):
     for batch, batch_data in enumerate(tqdm(args.trainloader, ncols=89, desc='Train')):
       batch_start_time = time.time()
       model.zero_grad()
-      loss, (outputs, predictions_, targets_) = process(batch_data + [ True ])
+      loss, (_, outputs, predictions_, targets_) = process(batch_data + [ True ])
       loss.backward()
       args.optimizer.step()
       # track some scores
@@ -311,7 +335,8 @@ def pipeline(args):
   
       if batch % args.log_interval == 0 and batch > 0:
         cur_loss = train_loss / args.log_interval
-        tqdm.write(message_status_interval('Current Status:', epoch+1, args.epochs, batch, len(args.trainloader), batch_start_time, args.log_interval, cur_loss, predictions, targets))
+        scores = getscores(targets, predictions)
+        tqdm.write(message_status_interval('Current Status:', epoch+1, args.epochs, batch, len(args.trainloader), batch_start_time, args.log_interval, cur_loss, scores))
         interval_loss = 0.
       train_loss = train_loss / (len(args.trainloader) * args.batch_size)
     return train_loss, predictions, targets
@@ -319,12 +344,20 @@ def pipeline(args):
   ###
   # Run pipeline
   ###
+  best_test_val = 0
   process = args.modelprocessfun
   for epoch in tqdm(range(args.epochs), ncols=89, desc = 'Epochs'):
     epoch_start_time = time.time()
     train_loss, _, _ = train(args)
-    test_loss, predictions, targets = evaluate(args, args.testloader)
-    tqdm.write(message_status_endepoch('', epoch+1, epoch_start_time, args.optimizer.getLearningRate(), train_loss, test_loss, predictions, targets))
+    test_loss, sampleids, logprobs, predictions, targets = evaluate(args, args.testloader)
+    scores = getscores(targets, predictions)
+    tqdm.write(message_status_endepoch('', epoch+1, epoch_start_time, args.optimizer.getLearningRate(), train_loss, test_loss, scores))
+    if best_test_val < scores['F']:
+      tqdm.write('> Saving model and prediction results...')
+      savemodel(args)
+      savepredictions(args, sampleids, logprobs, predictions, targets, scores)
+      best_test_val = scores['F']
+      tqdm.write('> ... Finished saving')
 
 ###############################################################################
 # Run in Engine mode

@@ -249,7 +249,7 @@ class SemEval2010(torch.utils.data.Dataset):
     dlabel  = r.labelids.dlabel
     
     d = self.deviceTensor    
-    return d.new_tensor(index), d.new_tensor(s), d.new_tensor(sl), d.new_tensor(e1_posi_seq), d.new_tensor(e2_posi_seq),  d.new_tensor(left), d.new_tensor(e1_offs), d.new_tensor(mid), d.new_tensor(e2_offs), d.new_tensor(right), d.new_tensor(e1), d.new_tensor(e1_len), d.new_tensor(e2), d.new_tensor(e2_len), d.new_tensor(label), d.new_tensor(e1label), d.new_tensor(e2label), d.new_tensor(rlabel), d.new_tensor(dlabel)
+    return d.new_tensor(index), d.new_tensor(r.id), d.new_tensor(s), d.new_tensor(sl), d.new_tensor(e1_posi_seq), d.new_tensor(e2_posi_seq),  d.new_tensor(left), d.new_tensor(e1_offs), d.new_tensor(mid), d.new_tensor(e2_offs), d.new_tensor(right), d.new_tensor(e1), d.new_tensor(e1_len), d.new_tensor(e2), d.new_tensor(e2_len), d.new_tensor(label), d.new_tensor(e1label), d.new_tensor(e2label), d.new_tensor(rlabel), d.new_tensor(dlabel)
   
   def cpu(self):
     return self.to(torch.device('cpu'))
