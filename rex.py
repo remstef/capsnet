@@ -100,8 +100,8 @@ def loadData(args):
   
   __ItemSampler = RandomSampler if args.shuffle_samples else SequentialSampler
   __BatchSampler = utils.EvenlyDistributingSampler if args.distr_samples else BatchSampler
-  train_loader = torch.utils.data.DataLoader(trainset, batch_sampler = utils.ShufflingBatchSampler(__BatchSampler(__ItemSampler(trainset), batch_size=args.batch_size, drop_last = True), shuffle = args.shuffle_batches, seed = args.seed), num_workers = 4)
-  test_loader = torch.utils.data.DataLoader(testset, batch_sampler = __BatchSampler(__ItemSampler(testset), batch_size=args.batch_size, drop_last = True), num_workers = 4)
+  train_loader = torch.utils.data.DataLoader(trainset, batch_sampler = utils.ShufflingBatchSampler(__BatchSampler(__ItemSampler(trainset), batch_size=args.batch_size, drop_last = True), shuffle = args.shuffle_batches, seed = args.seed), num_workers = 0)
+  test_loader = torch.utils.data.DataLoader(testset, batch_sampler = __BatchSampler(__ItemSampler(testset), batch_size=args.batch_size, drop_last = True), num_workers = 0)
 
   print(__ItemSampler.__name__)
   print(__BatchSampler.__name__)
@@ -217,7 +217,7 @@ def message_status_interval(message, epoch, max_epoch, batch_i, nbatches, batch_
   a = sklearn.metrics.accuracy_score(targets, predictions)
   return '''\
 | Status: Batch {:d} - {:d} / {:d} | Epoch {:d} / {:d} | ms/batch {:5.2f} 
-|   +-- Training loss {:9.6f}
+|   +-- Training loss {:.10f}
 |   +-- A {:6.4f} | P {:6.4f} | R {:6.4f} | F1 {:6.4f}
 |\
 '''.format(
@@ -240,8 +240,8 @@ def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, tra
 |{:s}
 | Epoch {:03d} took {:06.2f}s
 |   +-- Learing rate {:10.6f}
-|   +-- Loss (train) {:9.6f} 
-|   +-- Loss (test)  {:9.6f} 
+|   +-- Loss (train) {:.10f}
+|   +-- Loss (test)  {:.10f}
 |   +-- A {:6.4f} | P {:6.4f} | R {:6.4f} | F1 {:6.4f} 
 |{:s}
 |
