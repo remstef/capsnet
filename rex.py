@@ -167,7 +167,7 @@ def buildModel(args):
       dropout             = args.dropout,
       weightsword         = args.preembweights,
       train_emword        = True
-      )
+      ).to(args.device)
   
   criterion = torch.nn.NLLLoss() #CrossEntropyLoss # NLLLoss
  
