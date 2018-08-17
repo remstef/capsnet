@@ -27,6 +27,7 @@ def parseSystemArgs():
 #  parser.add_argument('--data', default='../data/semeval2010', type=str, help='location of the data corpus')
   parser.add_argument('--rnntype', default='LSTM', type=str, help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
   parser.add_argument('--optim', default='SGD', type=str, help='type of optimizer (SGD, Adam, ASGD, SimpleSGD)')
+  parser.add_argument('--loss-criterion', default='NLLLoss', type=str, help='type of loss function to use (NLLLoss, CrossEntropyLoss)')
   parser.add_argument('--emsize', default=300, type=int, help='size of word embeddings')
   parser.add_argument('--posiemsize', default=5, type=int, help='size of the position embeddings')
   parser.add_argument('--classemsize', default=4, type=int, help='size of label embeddings')
@@ -43,9 +44,10 @@ def parseSystemArgs():
   parser.add_argument('--batch-size', default=50, type=int, metavar='N', help='batch size') 
   parser.add_argument('--dropout', default=0.2, type=float, help='dropout applied to layers (0 = no dropout)')
   parser.add_argument('--seed', default=1111, type=int, help='random seed')
-  parser.add_argument('--log-interval', default=200, type=int, metavar='N', help='report interval')
+  parser.add_argument('--log-interval', default=60, type=int, metavar='N', help='report interval')
   parser.add_argument('--save', default='model.pt', type=str, help='path to save the final model')
   parser.add_argument('--init-weights', default='', type=str, help='path to initial embedding. emsize must match size of embedding')
+  parser.add_argument('--train-weights', action='store_true', help='Specify if the provided pre-learned embedding should be trainable')
   parser.add_argument('--shuffle-batches', action='store_true', help='shuffle batches')
   parser.add_argument('--shuffle-samples', action='store_true', help='shuffle samples')
   parser.add_argument('--distr-samples', action='store_true', help='distribute samples within batches evenly over time.')
@@ -98,8 +100,8 @@ def loadData(args):
   
   __ItemSampler = RandomSampler if args.shuffle_samples else SequentialSampler
   __BatchSampler = utils.EvenlyDistributingSampler if args.distr_samples else BatchSampler
-  train_loader = torch.utils.data.DataLoader(trainset, batch_sampler = utils.ShufflingBatchSampler(__BatchSampler(__ItemSampler(trainset), batch_size=args.batch_size, drop_last = True), shuffle = args.shuffle_batches, seed = args.seed), num_workers = 0)
-  test_loader = torch.utils.data.DataLoader(testset, batch_sampler = __BatchSampler(__ItemSampler(testset), batch_size=args.batch_size, drop_last = True), num_workers = 0)
+  train_loader = torch.utils.data.DataLoader(trainset, batch_sampler = utils.ShufflingBatchSampler(__BatchSampler(__ItemSampler(trainset), batch_size=args.batch_size, drop_last = True), shuffle = args.shuffle_batches, seed = args.seed), num_workers = 4)
+  test_loader = torch.utils.data.DataLoader(testset, batch_sampler = __BatchSampler(__ItemSampler(testset), batch_size=args.batch_size, drop_last = True), num_workers = 4)
 
   print(__ItemSampler.__name__)
   print(__BatchSampler.__name__)
@@ -166,11 +168,12 @@ def buildModel(args):
       convwindow          = args.convolution_windowsize,
       dropout             = args.dropout,
       weightsword         = args.preembweights,
-      train_emword        = True
+      train_emword        = args.train_weights
       ).to(args.device)
   
-  criterion = torch.nn.NLLLoss() #CrossEntropyLoss # NLLLoss
- 
+  if not args.loss_criterion in ['NLLLoss', 'CrossEntropyLoss']:
+    raise ValueError( '''Invalid option `%s` for 'loss-criterion' was supplied.''' % args.loss_criterion)
+  criterion = getattr(torch.nn, args.loss_criterion)()
   
   def process(batch_data):
     # unpack data that was already prepared (batch_first_dim)
@@ -185,9 +188,6 @@ def buildModel(args):
     predictions = getpredictions(outputs.data)
     return loss, (outputs, predictions, targets)
     
-  
-
-  
   print(model)
   print(criterion)
   
@@ -215,14 +215,20 @@ def message_status_interval(message, epoch, max_epoch, batch_i, nbatches, batch_
   r = sklearn.metrics.recall_score(targets, predictions, average='macro')
   f = sklearn.metrics.f1_score(targets, predictions, average='macro')
   a = sklearn.metrics.accuracy_score(targets, predictions)
-  return '| epoch {:3d} / {:3d} | batch {:5d} / {:5d} | ms/batch {:5.2f} | loss {:5.2f} | {:4.2f}/{:4.2f}/{:4.2f}/{:4.2f}'.format(
-      epoch,
-      max_epoch,
+  return '''\
+| Status: Batch {:d} - {:d} / {:d} | Epoch {:d} / {:d} | ms/batch {:5.2f} 
+|   +-- Training loss {:9.6f}
+|   +-- A {:6.4f} | P {:6.4f} | R {:6.4f} | F1 {:6.4f}
+|\
+'''.format(
+      batch_i - args.log_interval,
       batch_i,
       nbatches,
+      epoch,
+      max_epoch,
       ((time.time() - batch_start_time) * 1000) / log_interval, 
       train_loss_interval,
-      p,r,f,a)
+      a,p,r,f)
 
 def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, train_loss, test_loss, predictions, targets):
   p = sklearn.metrics.precision_score(targets, predictions, average='macro')
@@ -230,19 +236,24 @@ def message_status_endepoch(message, epoch, epoch_start_time, learning_rate, tra
   f = sklearn.metrics.f1_score(targets, predictions, average='macro')
   a = sklearn.metrics.accuracy_score(targets, predictions)
   return '''\
-++ Epoch {:03d} took {:06.2f}s (lr {:5.{lrprec}f}) ++ {:s}
-| train loss {:5.2f} | test loss {:5.2f} | p {:4.2f} | r {:4.2f} | f1 {:4.2f} | a {:4.2f}
-{:s}\
+|
+|{:s}
+| Epoch {:03d} took {:06.2f}s
+|   +-- learing rate {:10.6f}
+|   +-- loss train {:9.6f} 
+|   +-- loss test  {:9.6f} 
+|   +-- A {:6.4f} | P {:6.4f} | R {:6.4f} | F1 {:6.4f} 
+|{:s}
+|\
 '''.format(
+      '=' * 88,
       epoch, 
       (time.time() - epoch_start_time),
       learning_rate,
-      '-'*(49 if learning_rate >= 1 else 47),
       train_loss, 
       test_loss,
-      p, r, f, a,
-      '-' * 89,
-      lrprec=2 if learning_rate >= 1 else 5)
+      a, p, r, f,
+      '=' * 88)
 
 def getpredictions(batch_logprobs):
   return batch_logprobs.max(dim=1)[1]  
@@ -308,12 +319,11 @@ def pipeline(args):
   # Run pipeline
   ###
   process = args.modelprocessfun
-  
-  for epoch in range(args.epochs):
+  for epoch in tqdm(range(args.epochs), ncols=89, desc = 'Epochs'):
     epoch_start_time = time.time()
     train_loss, _, _ = train(args)
     test_loss, predictions, targets = evaluate(args, args.testloader)
-    print(message_status_endepoch('', epoch+1, epoch_start_time, args.optimizer.getLearningRate(), train_loss, test_loss, predictions, targets))
+    tqdm.write(message_status_endepoch('', epoch+1, epoch_start_time, args.optimizer.getLearningRate(), train_loss, test_loss, predictions, targets))
 
 ###############################################################################
 # Run in Engine mode

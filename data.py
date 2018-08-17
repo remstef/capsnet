@@ -21,109 +21,6 @@ from utils import Index, AttributeHolder
 
 from sklearn.datasets import fetch_20newsgroups
 import pickle
-
-'''
- Sequences in a single 1d tensor
-'''
-class FixedLengthSequenceDataset(torch.utils.data.Dataset):
-
-  def __init__(self, seqlen = 35, skip = 35):
-    super(FixedLengthSequenceDataset, self)
-    self.seqlen = seqlen
-    self.skip = skip
-    self.data = None
-    self.nsequences = None
-    
-  def __len__(self):
-    if self.nsequences is None:
-      self.nsequences = int(math.ceil((len(self.data)-self.seqlen) / self.skip))
-    return self.nsequences
-    
-  def __getitem__(self, index):
-    # seqlen=4
-    # skip=3
-    #    abcdefghijkl
-    # x1 ----         
-    # y1  ----         
-    # x2    ----       
-    # y2     ----       
-    # x3       ----      
-    # y3        ----      
-    # x4          xxx
-    # y4           xx
-    #
-    # seqlen=4
-    # skip=2
-    #    abcdefghijkl
-    # x1 ----         
-    # y1  ----         
-    # x2   ----       
-    # y2    ----       
-    # x3     ----      
-    # y3      ----      
-    # x4       ----  
-    # y4        ----  
-    # x5         ----
-    # y5          xxx
-    # get the sequence for index 
-    skip_index = index * self.skip # make sure each sequence is only read once
-    x = self.data[skip_index     : skip_index + self.seqlen    ]
-    y = self.data[skip_index + 1 : skip_index + self.seqlen + 1]
-    return x, y, self.seqlen
-  
-  def cuda(self):
-    self.data = self.data.cuda()
-    return self
-  
-  def to(self, device):
-    self.data = self.data.to(device)
-    return self
-  
-
-class CharSequence(FixedLengthSequenceDataset):
-  
-  def load(self):
-    print('Loading chars from %s' % self.file, file=sys.stderr)    
-    assert os.path.exists(self.file)    
-    with open(self.file, 'r', encoding='utf8') as f:
-      charsequence = f.read()
-    sequence = torch.LongTensor(list(map(lambda c: self.index.add(c.strip()), charsequence)))
-    del charsequence
-    return sequence
-    
-  def __init__(self, path, subset = 'train.txt', index = None, seqlen = 35, skip = 35):
-    super(CharSequence, self).__init__(seqlen, skip)
-    self.path = path
-    self.subset = subset
-    self.file = os.path.join(self.path, self.subset)
-    self.index = index if index is not None else Index()
-    self.data = self.load()
-    
-  
-'''
- tokens as a sequence in a single 1d tensor
-'''
-class TokenSequence(FixedLengthSequenceDataset):
-  
-  def load(self):
-    print('Loading %s sentences from %s' % (self.subset, self.file), file=sys.stderr)    
-    assert os.path.exists(self.file)    
-    data_ = []
-    with open(self.file, 'r', encoding='utf8') as f:
-      for i, line in enumerate(f):
-        for w in line.split() + ['<eos>']:
-          data_.append(self.index.add(w.strip()))
-    data = torch.LongTensor(data_)
-    del data_
-    return data
-    
-  def __init__(self, path, subset = 'train.txt', index = None, seqlen = 35, skip = 35):
-    super(TokenSequence, self).__init__(seqlen, skip)
-    self.path = path
-    self.subset = subset
-    self.file = os.path.join(self.path, self.subset)
-    self.index = index if index is not None else Index()
-    self.data = self.load()
     
 '''
 
@@ -138,8 +35,8 @@ class SemEval2010(torch.utils.data.Dataset):
     self.nbos = nbos
     self.neos = neos
     self.index = index if index is not None else Index()
-    self.bosidx = self.index.add('<bos>')
-    self.eosidx = self.index.add('<eos>')
+    self.bosidx = self.index.add('<s>')
+    self.eosidx = self.index.add('</s>')
     self.padidx = self.index.add('<pad>')
     self.epadidx = self.index.add('<epad>')
     self.classindex = classindex if classindex is not None else Index()
@@ -365,6 +262,109 @@ class SemEval2010(torch.utils.data.Dataset):
     self.device = device
     self.deviceTensor = self.deviceTensor.to(device)
     return self
+  
+'''
+ Sequences in a single 1d tensor
+'''
+class FixedLengthSequenceDataset(torch.utils.data.Dataset):
+
+  def __init__(self, seqlen = 35, skip = 35):
+    super(FixedLengthSequenceDataset, self)
+    self.seqlen = seqlen
+    self.skip = skip
+    self.data = None
+    self.nsequences = None
+    
+  def __len__(self):
+    if self.nsequences is None:
+      self.nsequences = int(math.ceil((len(self.data)-self.seqlen) / self.skip))
+    return self.nsequences
+    
+  def __getitem__(self, index):
+    # seqlen=4
+    # skip=3
+    #    abcdefghijkl
+    # x1 ----         
+    # y1  ----         
+    # x2    ----       
+    # y2     ----       
+    # x3       ----      
+    # y3        ----      
+    # x4          xxx
+    # y4           xx
+    #
+    # seqlen=4
+    # skip=2
+    #    abcdefghijkl
+    # x1 ----         
+    # y1  ----         
+    # x2   ----       
+    # y2    ----       
+    # x3     ----      
+    # y3      ----      
+    # x4       ----  
+    # y4        ----  
+    # x5         ----
+    # y5          xxx
+    # get the sequence for index 
+    skip_index = index * self.skip # make sure each sequence is only read once
+    x = self.data[skip_index     : skip_index + self.seqlen    ]
+    y = self.data[skip_index + 1 : skip_index + self.seqlen + 1]
+    return x, y, self.seqlen
+  
+  def cuda(self):
+    self.data = self.data.cuda()
+    return self
+  
+  def to(self, device):
+    self.data = self.data.to(device)
+    return self
+  
+
+class CharSequence(FixedLengthSequenceDataset):
+  
+  def load(self):
+    print('Loading chars from %s' % self.file, file=sys.stderr)    
+    assert os.path.exists(self.file)    
+    with open(self.file, 'r', encoding='utf8') as f:
+      charsequence = f.read()
+    sequence = torch.LongTensor(list(map(lambda c: self.index.add(c.strip()), charsequence)))
+    del charsequence
+    return sequence
+    
+  def __init__(self, path, subset = 'train.txt', index = None, seqlen = 35, skip = 35):
+    super(CharSequence, self).__init__(seqlen, skip)
+    self.path = path
+    self.subset = subset
+    self.file = os.path.join(self.path, self.subset)
+    self.index = index if index is not None else Index()
+    self.data = self.load()
+    
+  
+'''
+ tokens as a sequence in a single 1d tensor
+'''
+class TokenSequence(FixedLengthSequenceDataset):
+  
+  def load(self):
+    print('Loading %s sentences from %s' % (self.subset, self.file), file=sys.stderr)    
+    assert os.path.exists(self.file)    
+    data_ = []
+    with open(self.file, 'r', encoding='utf8') as f:
+      for i, line in enumerate(f):
+        for w in line.split() + ['<eos>']:
+          data_.append(self.index.add(w.strip()))
+    data = torch.LongTensor(data_)
+    del data_
+    return data
+    
+  def __init__(self, path, subset = 'train.txt', index = None, seqlen = 35, skip = 35):
+    super(TokenSequence, self).__init__(seqlen, skip)
+    self.path = path
+    self.subset = subset
+    self.file = os.path.join(self.path, self.subset)
+    self.index = index if index is not None else Index()
+    self.data = self.load()
 
 
 class SpamDataset(torch.utils.data.Dataset):

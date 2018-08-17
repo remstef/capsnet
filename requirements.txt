@@ -2,7 +2,7 @@
 # pre install:
 #   pip install cython
 # install:
-#   pip -r requirements.txt
+#   pip install -r requirements.txt
 # post install:
 #   conda install faiss-cpu -c pytorch
 ###
