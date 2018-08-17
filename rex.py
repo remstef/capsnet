@@ -46,15 +46,15 @@ def parseSystemArgs():
   parser.add_argument('--seed', default=1111, type=int, help='random seed')
   parser.add_argument('--log-interval', default=60, type=int, metavar='N', help='report interval')
 #  parser.add_argument('--save', default='model.pt', type=str, help='path to save the final model')
-  parser.add_argument('--init-weights', default='', type=str, help='path to initial embedding. emsize must match size of embedding')
-  parser.add_argument('--retrain-weights', action='store_true', help='Specify if the provided pre-learned embedding should be trainable')
+  parser.add_argument('--init-word-weights', default='', type=str, help='path to initial word embedding; emsize must match size of embedding')
+  parser.add_argument('--fix-word-weights', action='store_true', help='Specify if the word embedding should be trainable')
   parser.add_argument('--shuffle-batches', action='store_true', help='shuffle batches')
   parser.add_argument('--shuffle-samples', action='store_true', help='shuffle samples')
   parser.add_argument('--distr-samples', action='store_true', help='distribute samples within batches evenly over time.')
   parser.add_argument('--cuda', action='store_true', help='use CUDA')
   parser.add_argument('--engine', action='store_true', help='use torchnet engine for training and testing.')
   args = parser.parse_args()
-  
+    
   # Set the random seed manually for reproducibility.
   torch.manual_seed(args.seed)
   if torch.cuda.is_available():
@@ -81,15 +81,15 @@ def loadData(args):
   testset = data.SemEval2010('data/semeval2010/', subset='test.txt', maxseqlen = trainset.maxseqlen, index = index, nbos = args.windowsize // 2, neos = args.windowsize // 2, maxdist=args.maxdist, posiindex = trainset.posiindex, classindex = trainset.classindex, rclassindex = trainset.rclassindex, dclassindex = trainset.dclassindex, eclassindex = trainset.eclassindex).to(args.device)
   
   # load pre embedding
-  if args.init_weights:
+  if args.init_word_weights:
     # determine type of embedding by checking it's suffix
-    if args.init_weights.endswith('bin'):
-      preemb = embedding.FastTextEmbedding(args.init_weights, normalize = True).load()
+    if args.init_word_weights.endswith('bin'):
+      preemb = embedding.FastTextEmbedding(args.init_word_weights, normalize = True).load()
       if args.emsize != preemb.dim():
         raise ValueError(f'emsize must match embedding size. Expected {args.emsize:d} but got {preemb.dim():d}')
-    elif args.init_weights.endswith('txt'):
-      preemb = embedding.TextEmbedding(args.init_weights, vectordim = args.emsize).load(normalize = True)
-    elif args.init_weights.endswith('rand'):
+    elif args.init_word_weights.endswith('txt'):
+      preemb = embedding.TextEmbedding(args.init_word_weights, vectordim = args.emsize).load(normalize = True)
+    elif args.init_word_weights.endswith('rand'):
       preemb = embedding.RandomEmbedding(vectordim = args.emsize)
     else:
       raise ValueError('Type of embedding cannot be inferred.')
@@ -168,7 +168,7 @@ def buildModel(args):
       convwindow          = args.convolution_windowsize,
       dropout             = args.dropout,
       weightsword         = args.preembweights,
-      train_emword        = args.retrain_weights
+      fix_emword          = args.fix_word_weights
       ).to(args.device)
   
   if not args.loss_criterion in ['NLLLoss', 'CrossEntropyLoss']:

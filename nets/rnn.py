@@ -30,7 +30,7 @@ class ReClass(torch.nn.Module):
                convwindow=1,
                dropout=0.2,
                weightsword=None,
-               train_emword=True):
+               fix_emword=False):
     
     super(ReClass, self).__init__()
     
@@ -50,10 +50,10 @@ class ReClass(torch.nn.Module):
     self.softmax = torch.nn.LogSoftmax(dim=1) # Softmax(dim=1)
 
     # initialization actions
-    self.init_weights(weightsword, train_emword)
+    self.init_weights(weightsword, fix_emword)
     
     
-  def init_weights(self, weightsword, trainword):
+  def init_weights(self, weightsword, fix_emword):
     initrange = 0.1
     # TODO: check if that makes any difference
     #self.posi_embeddings.bias.data.zero_()
@@ -64,8 +64,8 @@ class ReClass(torch.nn.Module):
     else:
       assert weightsword.size() == self.word_embeddings.weight.size(), f'Size clash emwords supplied weights: {weightsword.size()}, expected {self.word_embeddings.weight.size()}'
       self.word_embeddings.load_state_dict({'weight': weightsword})
-      if not trainword:
-        self.word_embeddings.weight.requires_grad = False
+    if fix_emword:
+      self.word_embeddings.weight.requires_grad = False
     self.posi_embeddings.weight.data.uniform_(-initrange, initrange)
     self.class_embeddings.weight.data.uniform_(-initrange, initrange)
 
