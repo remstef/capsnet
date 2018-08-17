@@ -47,7 +47,7 @@ def parseSystemArgs():
   parser.add_argument('--log-interval', default=60, type=int, metavar='N', help='report interval')
 #  parser.add_argument('--save', default='model.pt', type=str, help='path to save the final model')
   parser.add_argument('--init-weights', default='', type=str, help='path to initial embedding. emsize must match size of embedding')
-  parser.add_argument('--train-weights', action='store_true', help='Specify if the provided pre-learned embedding should be trainable')
+  parser.add_argument('--retrain-weights', action='store_true', help='Specify if the provided pre-learned embedding should be trainable')
   parser.add_argument('--shuffle-batches', action='store_true', help='shuffle batches')
   parser.add_argument('--shuffle-samples', action='store_true', help='shuffle samples')
   parser.add_argument('--distr-samples', action='store_true', help='distribute samples within batches evenly over time.')
@@ -168,7 +168,7 @@ def buildModel(args):
       convwindow          = args.convolution_windowsize,
       dropout             = args.dropout,
       weightsword         = args.preembweights,
-      train_emword        = args.train_weights
+      train_emword        = args.retrain_weights
       ).to(args.device)
   
   if not args.loss_criterion in ['NLLLoss', 'CrossEntropyLoss']:
