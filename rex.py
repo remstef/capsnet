@@ -12,13 +12,14 @@ import torch
 from torch.utils.data.sampler import BatchSampler, SequentialSampler, RandomSampler
 import torchnet
 
-
 import data
 import utils
 import nets.rnn
 import embedding
 
+'''
 
+'''
 def parseSystemArgs():
   '''
   
@@ -212,6 +213,11 @@ def getpredictions(batch_logprobs):
   return batch_logprobs.max(dim=1)[1]
 
 def getscores(targets, predictions):
+  ''' official scoring (label without direction) + direction_errors as single error class
+  my $P = $$confMatrix{$labelAnswer}{$labelAnswer} / ($$allLabelsProposed{$labelAnswer} + $wrongDirectionCnt);
+  my $R = $$confMatrix{$labelAnswer}{$labelAnswer} / $$allLabelsAnswer{$labelAnswer};
+  my $F1 = 2 * $P * $R / ($P + $R);
+  '''
   vals = {
       'A': sklearn.metrics.accuracy_score(targets, predictions),
       'P': sklearn.metrics.precision_score(targets, predictions, average='macro'),

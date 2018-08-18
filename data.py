@@ -49,7 +49,8 @@ class SemEval2010(torch.utils.data.Dataset):
     self.device = torch.device('cpu')
     self.deviceTensor = torch.LongTensor().to(self.device) # create tensor on device, which can be used for copying
     
-  def process_label(self, label):
+  @staticmethod
+  def process_label(label):
     rval = AttributeHolder(label = label) # Product-Producer(e2,e1)
     rval.rlabel = re.sub(r'\(.*$', '', label) # Product-Producer
     rval.etypes = rval.rlabel.split('-')
