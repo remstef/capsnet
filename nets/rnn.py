@@ -41,10 +41,11 @@ class ReClass(torch.nn.Module):
     self.word_embeddings = torch.nn.Embedding(ntoken, emsizeword)
     self.posi_embeddings = torch.nn.Embedding(maxdist * 2 + 1, emsizeposi)
     self.class_embeddings = torch.nn.Embedding(nclasses, emsizeclass)
+    self.d1 = torch.nn.Dropout(dropout)
     
     self.conv = torch.nn.Conv2d(1, numconvfilters, (convwindow, self.fs), bias=True) #bias??
     self.relu = torch.nn.ReLU()
-    self.dropout = torch.nn.Dropout(dropout)
+    self.d2 = torch.nn.Dropout(dropout)
     self.maxpool = torch.nn.MaxPool2d(((maxseqlength-window_size//2-1) - (convwindow-1),1))
     self.linear = torch.nn.Linear(numconvfilters, nclasses)
     self.softmax = torch.nn.LogSoftmax(dim=1) # Softmax(dim=1)
@@ -81,6 +82,7 @@ class ReClass(torch.nn.Module):
     
     # concatenate word embedding with positional embedding, w = batch_size x seq_length x (wemsize+2xpemsize)
     w = torch.cat((we, pe1, pe2), dim=2)
+    w = self.d1(w) # because its a good poilicy
     # concatenate embeddings their context embeddings in a sliding window fashion, w = batch_size x  seq_length-windowsize//2-1 x (windowsize x (wemsize+2xpemsize))
     w = self.window_cat(w, self.window_size)
     
@@ -88,7 +90,7 @@ class ReClass(torch.nn.Module):
     w.unsqueeze_(1) # add `channel` dimension; needed for conv: w = batch_size x 1 x seq_length x nfeatures
     c = self.conv(w)
     c = self.relu(c) # because it's a good policy.. tanh would be another option
-    c = self.dropout(c) # yet another good policy, although debatable if it should come here
+    c = self.d2(c) # yet another good policy, although debatable if it should come here
     f = self.maxpool(c)
     f.squeeze_() # remove trailing singular dimensions (f: batch_size x numfilters x 1 x 1 => batch_size x numfilters)
     

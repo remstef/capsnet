@@ -98,7 +98,10 @@ class Index(object):
     return self.size()
   
   def __repr__(self):
-    return 'Index ([\n  {}\n])'.format('\n  '.join(map(lambda tup: f'{tup[0]:4d}: {tup[1]}', enumerate(self.id2w))))
+    subseq = self.id2w[:min(10,len(self.id2w))]
+    return 'Index ([\n  {}\n{}])'.format(
+        '\n  '.join(map(lambda tup: f'{tup[0]:4d}: {tup[1]}', enumerate(subseq))),
+        '     ...\n' if len(self.id2w) > len(subseq) else '')
   
   @staticmethod
   def fromfile(fname):

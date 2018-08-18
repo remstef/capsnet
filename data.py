@@ -26,14 +26,14 @@ import pickle
 
 '''
 class SemEval2010(torch.utils.data.Dataset):
-
-  def __init__(self, path, subset = 'train.txt', nlines=None, maxseqlen=None, maxdist=60, nbos = 0, neos = 1, index = None, posiindex = None, classindex = None, rclassindex = None, dclassindex = None, eclassindex = None, compact=True):
+  
+  def __init__(self, path, subset = 'train.txt', nlines=None, maxseqlen=None, maxentlen=None, maxdist=60, nbos = 0, neos = 1, index = None, posiindex = None, classindex = None, rclassindex = None, dclassindex = None, eclassindex = None, compact=True):
     self.path = path
     self.subset = subset
     self.maxseqlen = maxseqlen
     self.maxdist = maxdist
-    self.nbos = nbos
-    self.neos = neos
+    self.nbos = max(0, nbos)
+    self.neos = max(1, neos)
     self.index = index if index is not None else Index()
     self.bosidx = self.index.add('<s>')
     self.eosidx = self.index.add('</s>')
@@ -44,11 +44,10 @@ class SemEval2010(torch.utils.data.Dataset):
     self.dclassindex = dclassindex if dclassindex is not None else Index()
     self.eclassindex = eclassindex if eclassindex is not None else Index()
     self.posiindex = posiindex if eclassindex is not None else Index()
-    self.maxentlen = None
+    self.maxentlen = maxentlen
     self.load(nlines, compact)
     self.device = torch.device('cpu')
     self.deviceTensor = torch.LongTensor().to(self.device) # create tensor on device, which can be used for copying
-
     
   def process_label(self, label):
     rval = AttributeHolder(label = label) # Product-Producer(e2,e1)
@@ -115,7 +114,7 @@ class SemEval2010(torch.utils.data.Dataset):
     # add sentence begin and sentence end markers
     for i in range(self.nbos):
       s.insert(0, (self.bosidx, False, False))
-    for i in range(self.neos):
+    for i in range(max(self.neos, 1)):
       s.append((self.eosidx, False, False))
       
     seq, temp_seq_e1,  temp_seq_e2 = list(zip(*s))
@@ -262,6 +261,26 @@ class SemEval2010(torch.utils.data.Dataset):
     self.device = device
     self.deviceTensor = self.deviceTensor.to(device)
     return self
+  
+  def __repr__(self):
+    return f'''\
+{self.__class__.__name__:s} (
+  path: {self.path:s}
+  subset: {self.subset:s}
+  nsamples: {self.samples.shape[0]:d}
+  maxseqlen: {self.maxseqlen:d}
+  maxentlen: {self.maxentlen:d}
+  maxdist: {self.maxdist:d}
+  wordindex: {self.index}
+  posiindex: {self.posiindex}
+  classindex: {self.classindex}
+  rclassindex: {self.rclassindex}
+  dclassindex: {self.dclassindex}
+  eclassindex: {self.eclassindex}
+  device: {self.device}
+  sample[0]: {self.samples.iloc[0].seq_recon}
+)  
+'''
   
 '''
  Sequences in a single 1d tensor

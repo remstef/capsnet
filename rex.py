@@ -75,7 +75,10 @@ def loadData(args):
   trainset.dclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-direction.txt'))
   trainset.eclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-entity.txt'))
   
-  testset = data.SemEval2010('data/semeval2010/', subset='test.txt', maxseqlen = trainset.maxseqlen, index = index, nbos = args.windowsize // 2, neos = args.windowsize // 2, maxdist=args.maxdist, posiindex = trainset.posiindex, classindex = trainset.classindex, rclassindex = trainset.rclassindex, dclassindex = trainset.dclassindex, eclassindex = trainset.eclassindex).to(args.device)
+  testset = data.SemEval2010('data/semeval2010/', subset='test.txt', maxseqlen = trainset.maxseqlen, maxentlen = trainset.maxentlen, index = index, nbos = args.windowsize // 2, neos = args.windowsize // 2, maxdist=args.maxdist, posiindex = trainset.posiindex, classindex = trainset.classindex, rclassindex = trainset.rclassindex, dclassindex = trainset.dclassindex, eclassindex = trainset.eclassindex).to(args.device)
+  
+  print('train: ' + str(trainset))
+  print('test: ' + str(testset))
   
   # load pre embedding
   if args.init_word_weights:
