@@ -26,7 +26,7 @@ def parseSystemArgs():
   parser = argparse.ArgumentParser(description='Relation Extraction')
 #  parser.add_argument('--data', default='../data/semeval2010', type=str, help='location of the data corpus')
 #  parser.add_argument('--rnntype', default='LSTM', type=str, help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
-  parser.add_argument('--optim', default='SGD', type=str, help='type of optimizer (SGD, Adam, ASGD, SimpleSGD)')
+  parser.add_argument('--optim', default='SGD', type=str, help='type of optimizer (SGD, Adam, Adagrad, ASGD, SimpleSGD)')
   parser.add_argument('--loss-criterion', default='NLLLoss', type=str, help='type of loss function to use (NLLLoss, CrossEntropyLoss)')
   parser.add_argument('--emsize', default=300, type=int, help='size of word embeddings')
   parser.add_argument('--posiemsize', default=5, type=int, help='size of the position embeddings')
@@ -34,7 +34,8 @@ def parseSystemArgs():
   parser.add_argument('--maxdist', default=60, type=int, help='maximum distance for position embeddings')
   parser.add_argument('--windowsize', default=3, type=int, help='number of convolution filters to apply')
   parser.add_argument('--numconvfilters', default=200, type=int, help='size of the moving convolutional window')
-  parser.add_argument('--convolution-windowsize', default=1, type=int, help='size of the moving convolutional window')
+  parser.add_argument('--conv-windowsize', default=1, type=int, help='size of the moving convolutional window')
+  parser.add_argument('--conv-activation', default='ReLU', type=str, help='activation function to use after convolutinal layer (ReLU, Tanh)')
   parser.add_argument('--nhid', default=200, type=int, help='size of hidden layer')
   parser.add_argument('--lr', default=1., type=float, help='initial learning rate')
 #  parser.add_argument('--lr-decay', default=0.25, type=float, help='decay amount of learning learning rate if no validation improvement occurs')
@@ -163,8 +164,9 @@ def buildModel(args):
       emsizeclass         = args.classemsize,
       nhid                = args.nhid,
       numconvfilters      = args.numconvfilters,
-      convwindow          = args.convolution_windowsize,
+      convwindow          = args.conv_windowsize,
       dropout             = args.dropout,
+      conv_activation     = args.conv_activation,
       weightsword         = args.preembweights,
       fix_emword          = args.fix_word_weights
       ).to(args.device)
@@ -198,7 +200,7 @@ def buildModel(args):
 def getOptimizer(args):
   if args.optim == 'SimpleSGD':
     Optimizer__ = utils.SimpleSGD
-  elif not args.optim in ['Adam', 'ASGD', 'SGD']:
+  elif not args.optim in [ 'SGD', 'Adam', 'ASGD', 'Adagrad' ]:
     raise ValueError( '''Invalid option `%s` for 'optimizer' was supplied.''' % args.optim)
   else:
     Optimizer__ = getattr(torch.optim, args.optim)

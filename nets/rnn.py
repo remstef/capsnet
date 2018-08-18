@@ -29,6 +29,7 @@ class ReClass(torch.nn.Module):
                numconvfilters=100,
                convwindow=1,
                dropout=0.2,
+               conv_activation='ReLU',
                weightsword=None,
                fix_emword=False):
     
@@ -44,7 +45,10 @@ class ReClass(torch.nn.Module):
     self.d1 = torch.nn.Dropout(dropout)
     
     self.conv = torch.nn.Conv2d(1, numconvfilters, (convwindow, self.fs), bias=True) #bias??
-    self.relu = torch.nn.ReLU()
+    
+    if not conv_activation in ['ReLU', 'Tanh']:
+      raise ValueError( '''Invalid option `%s` for 'conv-activation'.''' % conv_activation)
+    self.convact = getattr(torch.nn, conv_activation)()
     self.d2 = torch.nn.Dropout(dropout)
     self.maxpool = torch.nn.MaxPool2d(((maxseqlength-window_size//2-1) - (convwindow-1),1))
     self.linear = torch.nn.Linear(numconvfilters, nclasses)
@@ -89,7 +93,7 @@ class ReClass(torch.nn.Module):
     # convolution + maxpooling
     w.unsqueeze_(1) # add `channel` dimension; needed for conv: w = batch_size x 1 x seq_length x nfeatures
     c = self.conv(w)
-    c = self.relu(c) # because it's a good policy.. tanh would be another option
+    c = self.convact(c) # because it's a good policy
     c = self.d2(c) # yet another good policy, although debatable if it should come here
     f = self.maxpool(c)
     f.squeeze_() # remove trailing singular dimensions (f: batch_size x numfilters x 1 x 1 => batch_size x numfilters)
