@@ -20,6 +20,7 @@ class ReClass(torch.nn.Module):
                ntoken,
                nclasses,
                maxseqlength,
+               maxentlength,
                maxdist,
                window_size,
                emsizeword,
@@ -52,6 +53,8 @@ class ReClass(torch.nn.Module):
     self.d2 = torch.nn.Dropout(dropout)
     self.maxpool = torch.nn.MaxPool2d(((maxseqlength-window_size//2-1) - (convwindow-1),1))
     self.linear = torch.nn.Linear(numconvfilters, nclasses)
+
+    self.linear2 = torch.nn.Linear((maxentlength * emsizeword * 2) + nclasses, nclasses)
     self.softmax = torch.nn.LogSoftmax(dim=1) # Softmax(dim=1)
 
     # initialization actions
@@ -74,12 +77,13 @@ class ReClass(torch.nn.Module):
     self.posi_embeddings.weight.data.uniform_(-initrange, initrange)
     self.class_embeddings.weight.data.uniform_(-initrange, initrange)
 
-  def forward(self, seq, seqlen, e1, e2, seqp_e1, seqp_e2):
+  def forward(self, seq, seqlen, e1, e1len, e2, e2len, offs_e1, offs_e2, seqp_e1, seqp_e2):
     # seq = batch_size x max_seq_length (padded) : sentence
     # seqlen = batch_size x seq_length
     # e1 & e2 = batch_size x 2 : offsets as begin e[0] and end e[1]
     # seqpX = batch_size x max_seqlength (padded) : sentence as relative position indices to e1 and e2
     
+    ## BEGIN: sentence level features
     we = self.word_embeddings(seq)
     pe1 = self.posi_embeddings(seqp_e1)
     pe2 = self.posi_embeddings(seqp_e2)
@@ -99,8 +103,19 @@ class ReClass(torch.nn.Module):
     f.squeeze_() # remove trailing singular dimensions (f: batch_size x numfilters x 1 x 1 => batch_size x numfilters)
     
     # linear classification
-    o = self.linear(f)
-    o = self.softmax(o)
+    o1 = self.linear(f)
+    ## END: sentence level features
+    
+    ## BEGIN: lexical level features
+    L1 = self.word_embeddings(e1)
+    L1 = L1.view(L1.size(0), -1) # concatenate entity embedding vectors
+    L2 = self.word_embeddings(e2)
+    L2 = L2.view(L2.size(0), -1) # concatenate entity embedding vectors
+    l = torch.cat((L1, L2, o1), dim=1) # concatenate features vectors    
+    ## END: lexical level features
+
+    o2 = self.linear2(l)
+    o = self.softmax(o2)
     
     return o, 0
   

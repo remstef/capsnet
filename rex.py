@@ -72,10 +72,10 @@ def loadData(args):
   
   trainset.index.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'vocab.txt'))
   trainset.posiindex.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'position-index.txt'))
-  trainset.classindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes.txt'))
-  trainset.rclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-rel.txt'))
-  trainset.dclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-direction.txt'))
-  trainset.eclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-entity.txt'))
+  trainset.classindex.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'classes.txt'))
+  trainset.rclassindex.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'classes-rel.txt'))
+  trainset.dclassindex.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'classes-direction.txt'))
+  trainset.eclassindex.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'classes-entity.txt'))
   
   testset = data.SemEval2010('data/semeval2010/', subset='test.txt', maxseqlen = trainset.maxseqlen, maxentlen = trainset.maxentlen, index = index, nbos = args.windowsize // 2, neos = args.windowsize // 2, maxdist=args.maxdist, posiindex = trainset.posiindex, classindex = trainset.classindex, rclassindex = trainset.rclassindex, dclassindex = trainset.dclassindex, eclassindex = trainset.eclassindex).to(args.device)
   
@@ -108,6 +108,7 @@ def loadData(args):
   print('Shuffle training batches: ', args.shuffle_batches)
 
   args.maxseqlen = trainset.maxseqlen
+  args.maxentlen = trainset.maxentlen
   args.index = index
   args.posiindex = trainset.posiindex
   args.classindex = trainset.classindex
@@ -159,6 +160,7 @@ def buildModel(args):
       nclasses            = args.nclasses,
       maxdist             = args.maxdist,
       maxseqlength        = args.maxseqlen,
+      maxentlength        = args.maxentlen,
       window_size         = args.windowsize,
       emsizeword          = args.emsize,
       emsizeposi          = args.posiemsize,
@@ -182,7 +184,7 @@ def buildModel(args):
     # assert ith_sample.size(0) == args.batch_size, f"That's odd, batch dimension should be {args.batch_size:d} but is {ith_sample.size(0)}."
     targets = label
     
-    outputs, labelweights = model(seq, seqlen, offs_e1, offs_e2, relposi_vec_e1, relposi_vec_e2)
+    outputs, labelweights = model(seq, seqlen, seq_e1, seqlen_e1, seq_e2, seqlen_e2, offs_e1, offs_e2, relposi_vec_e1, relposi_vec_e2)
       
     loss = criterion(outputs, targets)
     
