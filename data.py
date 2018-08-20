@@ -43,7 +43,7 @@ class SemEval2010(torch.utils.data.Dataset):
     self.rclassindex = rclassindex if rclassindex is not None else Index()
     self.dclassindex = dclassindex if dclassindex is not None else Index()
     self.eclassindex = eclassindex if eclassindex is not None else Index()
-    self.posiindex = posiindex if eclassindex is not None else Index()
+    self.posiindex = posiindex if eclassindex is not None else Index(initwords = [ maxdist, -maxdist ], unkindex = 0)
     self.maxentlen = maxentlen
     self.load(nlines, compact)
     self.device = torch.device('cpu')
@@ -132,12 +132,12 @@ class SemEval2010(torch.utils.data.Dataset):
     if placeholder_e:
       e1 = self.index.add('<e1>')
       e2 = self.index.add('<e2>')
-      seq = torch.cat(
+      seq = torch.cat((
           seq[:row.e1_in_seq[0]],
           torch.LongTensor([e1]),
-          seq[row.e1_in_pseq[1]:row.e2_in_seq[0]],
+          seq[row.e1_in_seq[1]:row.e2_in_seq[0]],
           torch.LongTensor([e2]),
-          seq[row.e2_in_seq[1]:])
+          seq[row.e2_in_seq[1]:]))
       row['e1_in_seq'] = (seq == e1).nonzero()[0,0].item()
       row['e1_in_seq'] = (row.e1_in_seq, row.e1_in_seq+1)
       row['e2_in_seq'] = (seq == e2).nonzero()[0,0].item()
@@ -192,7 +192,7 @@ class SemEval2010(torch.utils.data.Dataset):
 
     # load processed messages
     self.samples = pandas.read_pickle(processed_file)    
-    self.samples = self.samples.apply(lambda r: self.make_sequence_tensor(r, placeholder_e = False), axis=1)
+    self.samples = self.samples.apply(lambda r: self.make_sequence_tensor(r, placeholder_e = True), axis=1)
 
     # pad
     if not self.maxseqlen:

@@ -68,16 +68,16 @@ def parseSystemArgs():
 def loadData(args):
   index = utils.Index(initwords = ['<unk>'], unkindex = 0)
   
-  trainset = data.SemEval2010('data/semeval2010/', subset='train.txt', index = index, maxdist = args.maxdist, nbos = args.windowsize // 2, neos = args.windowsize // 2).to(args.device)
+  trainset = data.SemEval2010('data/semeval2010/', subset='train.txt', nlines = None, index = index, maxdist = args.maxdist, nbos = args.windowsize // 2, neos = args.windowsize // 2).to(args.device)
   
   trainset.index.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'vocab.txt'))
   trainset.posiindex.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'position-index.txt'))
-  trainset.classindex.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'classes.txt'))
-  trainset.rclassindex.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'classes-rel.txt'))
-  trainset.dclassindex.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'classes-direction.txt'))
-  trainset.eclassindex.freeze(silent = True).tofile(os.path.join('data/semeval2010/', 'classes-entity.txt'))
+  trainset.classindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes.txt'))
+  trainset.rclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-rel.txt'))
+  trainset.dclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-direction.txt'))
+  trainset.eclassindex.freeze(silent = False).tofile(os.path.join('data/semeval2010/', 'classes-entity.txt'))
   
-  testset = data.SemEval2010('data/semeval2010/', subset='test.txt', maxseqlen = trainset.maxseqlen, maxentlen = trainset.maxentlen, index = index, nbos = args.windowsize // 2, neos = args.windowsize // 2, maxdist=args.maxdist, posiindex = trainset.posiindex, classindex = trainset.classindex, rclassindex = trainset.rclassindex, dclassindex = trainset.dclassindex, eclassindex = trainset.eclassindex).to(args.device)
+  testset = data.SemEval2010('data/semeval2010/', subset='test.txt', nlines = None, maxseqlen = trainset.maxseqlen, maxentlen = trainset.maxentlen, index = index, nbos = args.windowsize // 2, neos = args.windowsize // 2, maxdist=args.maxdist, posiindex = trainset.posiindex, classindex = trainset.classindex, rclassindex = trainset.rclassindex, dclassindex = trainset.dclassindex, eclassindex = trainset.eclassindex).to(args.device)
   
   print('train: ' + str(trainset))
   print('test: ' + str(testset))

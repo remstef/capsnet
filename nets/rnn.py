@@ -111,7 +111,8 @@ class ReClass(torch.nn.Module):
     L1 = L1.view(L1.size(0), -1) # concatenate entity embedding vectors
     L2 = self.word_embeddings(e2)
     L2 = L2.view(L2.size(0), -1) # concatenate entity embedding vectors
-    l = torch.cat((L1, L2, o1), dim=1) # concatenate features vectors    
+    l = torch.cat((L1, L2, o1), dim=1) # concatenate features vectors
+    l = self.d2(l)
     ## END: lexical level features
 
     o2 = self.linear2(l)
