@@ -44,17 +44,14 @@ class ReClass(torch.nn.Module):
     self.posi_embeddings = torch.nn.Embedding(maxdist * 2 + 1, emsizeposi)
     self.class_embeddings = torch.nn.Embedding(nclasses, emsizeclass)
     self.d1 = torch.nn.Dropout(dropout)
-    
     self.conv = torch.nn.Conv2d(1, numconvfilters, (convwindow, self.fs), bias=True) #bias??
-    
     if not conv_activation in ['ReLU', 'Tanh']:
       raise ValueError( '''Invalid option `%s` for 'conv-activation'.''' % conv_activation)
     self.convact = getattr(torch.nn, conv_activation)()
     self.d2 = torch.nn.Dropout(dropout)
     self.maxpool = torch.nn.MaxPool2d(((maxseqlength-window_size//2-1) - (convwindow-1),1))
-    self.linear = torch.nn.Linear(numconvfilters, nhid)
-
-    self.linear2 = torch.nn.Linear((maxentlength * emsizeword * 2) + nhid, nclasses)
+    self.linear_sentence = torch.nn.Linear(numconvfilters, nhid)
+    self.linear_classify = torch.nn.Linear((maxentlength * emsizeword * 2) + nhid, nclasses)
     self.d3 = torch.nn.Dropout(dropout)
     self.softmax = torch.nn.LogSoftmax(dim=1) # Softmax(dim=1)
 
@@ -85,39 +82,40 @@ class ReClass(torch.nn.Module):
     # seqpX = batch_size x max_seqlength (padded) : sentence as relative position indices to e1 and e2
     
     ## BEGIN: sentence level features
-    we = self.word_embeddings(seq)
-    pe1 = self.posi_embeddings(seqp_e1)
-    pe2 = self.posi_embeddings(seqp_e2)
-    
+    s = self.word_embeddings(seq)
+    p1 = self.posi_embeddings(seqp_e1)
+    p2 = self.posi_embeddings(seqp_e2)
     # concatenate word embedding with positional embedding, w = batch_size x seq_length x (wemsize+2xpemsize)
-    w = torch.cat((we, pe1, pe2), dim=2)
-    w = self.d1(w) # because its a good poilicy
+    w = torch.cat((s, p1, p2), dim=2)
+    w = self.d1(w)
     # concatenate embeddings their context embeddings in a sliding window fashion, w = batch_size x  seq_length-windowsize//2-1 x (windowsize x (wemsize+2xpemsize))
-    w = self.window_cat(w, self.window_size)
-    
+    w = self.window_cat(w, self.window_size)    
     # convolution + maxpooling
     w.unsqueeze_(1) # add `channel` dimension; needed for conv: w = batch_size x 1 x seq_length x nfeatures
     c = self.conv(w)
     c = self.convact(c) # because it's a good policy
     c = self.d2(c) # yet another good policy, although debatable if it should come here
-    f = self.maxpool(c)
-    f.squeeze_() # remove trailing singular dimensions (f: batch_size x numfilters x 1 x 1 => batch_size x numfilters)
-    
-    # linear classification
-    o1 = self.linear(f)
+    z = self.maxpool(c)
+    z = z.squeeze() # remove trailing singular dimensions (f: batch_size x numfilters x 1 x 1 => batch_size x numfilters)
+    # linear layer to squash into fixed number of features
+    g = self.linear_sentence(z)
     ## END: sentence level features
     
     ## BEGIN: lexical level features
     L1 = self.word_embeddings(e1)
     L1 = L1.view(L1.size(0), -1) # concatenate entity embedding vectors
     L2 = self.word_embeddings(e2)
-    L2 = L2.view(L2.size(0), -1) # concatenate entity embedding vectors, keep batch dimension (0) in tact
-    l = torch.cat((L1, L2, o1), dim=1) # concatenate features vectors
-    l = self.d3(l)
+    L2 = L2.view(L2.size(0), -1) # concatenate entity embedding vectors, keep batch dimension (0) in tact      
+    #l = torch.cat((L1, L2) if e1[0] < e2[0] else (L2, L1), dim=1) # concatenate features vectors
+    l = torch.cat((L1, L2), dim=1)
     ## END: lexical level features
 
-    o2 = self.linear2(l)
-    o = self.softmax(o2)
+    ## BEGIN: classification - combine sentence level and lexical level features
+    f = torch.cat((g, l), dim=1) # concatenate features vectors
+    f = self.d3(f)
+    o = self.linear_classify(f)
+    o = self.softmax(o)
+    ## END: classification
     
     return o, 0
   

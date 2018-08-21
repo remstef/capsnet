@@ -365,7 +365,7 @@ def pipeline(args):
     scores = getscores(targets, predictions)
     tqdm.write(message_status_endepoch('', epoch+1, epoch_start_time, args.optimizer.getLearningRate(), train_loss, test_loss, scores))
     if best_test_val < scores['F']:
-      tqdm.write('|\n> Saving model and prediction results...')
+      tqdm.write('> Saving model and prediction results...')
       savemodel(args)
       savepredictions(args, sampleids, logprobs, predictions, targets, scores)
       best_test_val = scores['F']

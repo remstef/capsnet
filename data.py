@@ -124,8 +124,8 @@ class SemEval2010(torch.utils.data.Dataset):
     row['e1_in_seq'] = (row.e1_in_seq, temp_seq_e1.index(False, row.e1_in_seq))
     row['e2_in_seq'] = temp_seq_e2.index(True)
     row['e2_in_seq'] = (row.e2_in_seq, temp_seq_e2.index(False, row.e2_in_seq))
-    row['seq_e1'] = seq[row.e1_in_seq[0]:row.e1_in_seq[1]]
-    row['seq_e2'] = seq[row.e2_in_seq[0]:row.e2_in_seq[1]]
+    row['seq_e1'] = seq[range(row.e1_in_seq[1]-1, row.e1_in_seq[0]-1, -1)] # save entities in reversed order
+    row['seq_e2'] = seq[range(row.e2_in_seq[1]-1, row.e2_in_seq[0]-1, -1)]
     row['seqlen_e1'] = row.seq_e1.size(0)
     row['seqlen_e2'] = row.seq_e2.size(0)    
 
@@ -247,7 +247,7 @@ class SemEval2010(torch.utils.data.Dataset):
     e2label = r.labelids.e2label
     rlabel  = r.labelids.rlabel
     dlabel  = r.labelids.dlabel
-    
+        
     d = self.deviceTensor    
     return d.new_tensor(index), d.new_tensor(r.id), d.new_tensor(s), d.new_tensor(sl), d.new_tensor(e1_posi_seq), d.new_tensor(e2_posi_seq),  d.new_tensor(left), d.new_tensor(e1_offs), d.new_tensor(mid), d.new_tensor(e2_offs), d.new_tensor(right), d.new_tensor(e1), d.new_tensor(e1_len), d.new_tensor(e2), d.new_tensor(e2_len), d.new_tensor(label), d.new_tensor(e1label), d.new_tensor(e2label), d.new_tensor(rlabel), d.new_tensor(dlabel)
   
