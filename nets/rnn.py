@@ -52,9 +52,10 @@ class ReClass(torch.nn.Module):
     self.convact = getattr(torch.nn, conv_activation)()
     self.d2 = torch.nn.Dropout(dropout)
     self.maxpool = torch.nn.MaxPool2d(((maxseqlength-window_size//2-1) - (convwindow-1),1))
-    self.linear = torch.nn.Linear(numconvfilters, nclasses)
+    self.linear = torch.nn.Linear(numconvfilters, nhid)
 
-    self.linear2 = torch.nn.Linear((maxentlength * emsizeword * 2) + nclasses, nclasses)
+    self.linear2 = torch.nn.Linear((maxentlength * emsizeword * 2) + nhid, nclasses)
+    self.d3 = torch.nn.Dropout(dropout)
     self.softmax = torch.nn.LogSoftmax(dim=1) # Softmax(dim=1)
 
     # initialization actions
@@ -110,9 +111,9 @@ class ReClass(torch.nn.Module):
     L1 = self.word_embeddings(e1)
     L1 = L1.view(L1.size(0), -1) # concatenate entity embedding vectors
     L2 = self.word_embeddings(e2)
-    L2 = L2.view(L2.size(0), -1) # concatenate entity embedding vectors
+    L2 = L2.view(L2.size(0), -1) # concatenate entity embedding vectors, keep batch dimension (0) in tact
     l = torch.cat((L1, L2, o1), dim=1) # concatenate features vectors
-    l = self.d2(l)
+    l = self.d3(l)
     ## END: lexical level features
 
     o2 = self.linear2(l)
